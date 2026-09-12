@@ -34,6 +34,33 @@ Every value is mirrored into an XML tree in the `xdm:` namespace
   XSD type (`xs:integer`, `xs:date`, `xs:QName`, ...) so the value casts
   back to exactly the same type, not just "string/number/boolean".
 
+For example, `map { 'name': 'Ada Lovelace', 'scores': (7, 9, 10), 'bio': <p>Mathematician.</p> }`
+serializes to:
+
+```xml
+<xdm:sequence xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence">
+  <xdm:item>
+    <xdm:map>
+      <xdm:entry key="scores" key-type="xs:string">
+        <xdm:item><xdm:atomic type="xs:integer">7</xdm:atomic></xdm:item>
+        <xdm:item><xdm:atomic type="xs:integer">9</xdm:atomic></xdm:item>
+        <xdm:item><xdm:atomic type="xs:integer">10</xdm:atomic></xdm:item>
+      </xdm:entry>
+      <xdm:entry key="bio" key-type="xs:string">
+        <xdm:item><p>Mathematician.</p></xdm:item>
+      </xdm:entry>
+      <xdm:entry key="name" key-type="xs:string">
+        <xdm:item><xdm:atomic type="xs:string">Ada Lovelace</xdm:atomic></xdm:item>
+      </xdm:entry>
+    </xdm:map>
+  </xdm:item>
+</xdm:sequence>
+```
+
+Note `scores` holding three `xdm:item`s under one `xdm:entry` (a map value is an
+arbitrary sequence, not just a single item), and `bio` holding the `<p>` element
+completely unwrapped, exactly as it was written.
+
 ## Files
 
 | File | Purpose |
