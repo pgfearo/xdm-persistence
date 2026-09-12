@@ -13,11 +13,6 @@
        equivalent XPath 3.1 data model value (item()*).
   -->
 
-  <!-- xsl:import (not xsl:include) so that a caller who imports both
-       xdm-serializer.xsl and xdm-parser.xsl does not get xdm-types.xsl's
-       global declarations merged in twice. -->
-  <xsl:import href="xdm-types.xsl"/>
-
   <xsl:function name="xdm:parse" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
     <xsl:sequence select="xdm:parse-item-seq($doc/xdm:sequence/xdm:item)"/>

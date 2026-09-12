@@ -15,11 +15,6 @@
        into an equivalent value.
   -->
 
-  <!-- xsl:import (not xsl:include) so that a caller who imports both
-       xdm-serializer.xsl and xdm-parser.xsl does not get xdm-types.xsl's
-       global declarations merged in twice. -->
-  <xsl:import href="xdm-types.xsl"/>
-
   <xsl:function name="xdm:serialize" as="document-node()">
     <xsl:param name="value" as="item()*"/>
     <xsl:document>
