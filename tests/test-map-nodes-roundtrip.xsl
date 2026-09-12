@@ -42,7 +42,8 @@
       'nestedElement': $nestedElement,
       'namespacedElement': $namespacedElement,
       'attr': $attributeNode,
-      'text': $textNode
+      'text': $textNode,
+      'helper': $helper
     }"/>
 
   <xsl:template name="xsl:initial-template">
