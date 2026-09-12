@@ -139,3 +139,6 @@ function support — e.g. Saxon Home Edition or above, 9.8+. `xsltproc`
 - `xs:NOTATION` values degrade to `xs:untypedAtomic` on parse — XPath has no
   cast constructor for `NOTATION`, so it can't be reconstructed from its
   lexical form alone.
+- Function items other than maps and arrays (inline functions, named function
+  references, partial applications) are not supported — `xdm:serialize` fails
+  with `FOTY0013` if one appears in the value.
