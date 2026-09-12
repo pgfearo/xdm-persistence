@@ -6,26 +6,43 @@
                 version="3.0">
 
   <!--
-       Basic round-trip test: build a map, serialize it, parse that back,
-       then serialize the result again. The test passes if the two
-       serializations are deep-equal - i.e. parse(serialize(v)) is
-       something serialize() treats as identical to v, without relying on
-       comparing against the original map directly (map key/value order
-       is not significant, but deep-equal on the XML serializations is a
-       stable, order-sensitive check that both round trips agree on).
+       Round-trip test for a map whose values are XML nodes rather than
+       atomic values: a plain element, a nested element, a namespaced
+       element, a standalone attribute node, and a standalone text node.
+       Passes if serialize(parse(serialize(v))) is deep-equal to
+       serialize(v).
   -->
 
   <xsl:import href="../src/xdm-persistence.xsl"/>
 
   <xsl:output method="text"/>
 
+  <xsl:variable name="plainElement" as="element()">
+    <greeting>hello</greeting>
+  </xsl:variable>
+
+  <xsl:variable name="nestedElement" as="element()">
+    <outer><inner id="1">deep</inner></outer>
+  </xsl:variable>
+
+  <xsl:variable name="namespacedElement" as="element()">
+    <ns:tag xmlns:ns="http://example.com/ns">value</ns:tag>
+  </xsl:variable>
+
+  <xsl:variable name="helper" as="element()">
+    <item id="42">some text content</item>
+  </xsl:variable>
+
+  <xsl:variable name="attributeNode" as="attribute()" select="$helper/@id"/>
+  <xsl:variable name="textNode" as="text()" select="$helper/text()"/>
+
   <xsl:variable name="sampleValue" as="item()*" select="
     map {
-      'name': 'Ada Lovelace',
-      'born': xs:date('1815-12-10'),
-      'tags': array { 'mathematician', 'writer' },
-      'active': true(),
-      'nested': map { 'x': 1, 'y': (2, 3) }
+      'plainElement': $plainElement,
+      'nestedElement': $nestedElement,
+      'namespacedElement': $namespacedElement,
+      'attr': $attributeNode,
+      'text': $textNode
     }"/>
 
   <xsl:template name="xsl:initial-template">
@@ -36,7 +53,7 @@
 
     <xsl:choose>
       <xsl:when test="$passed">
-        <xsl:message select="'PASS: map round-trip serializes identically' || '&#10;'"/>
+        <xsl:message select="'PASS: node-valued map round-trip serializes identically' || '&#10;'"/>
       </xsl:when>
       <xsl:otherwise>
         <xsl:sequence select="'FAIL: second serialization differs from the first' || '&#10;'"/>
