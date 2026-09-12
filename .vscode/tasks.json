@@ -1,0 +1,41 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "xslt",
+			"label": "run serialise example",
+			"saxonJar": "${config:XSLT.tasks.saxonJar}",
+			"xsltFile": "${workspaceFolder}/examples/demo.xsl",
+			"xmlSource": "${workspaceFolder}/examples/demo.xsl",
+			"initialTemplate": "",
+			"resultPath": "${workspaceFolder}/examples/out/empty.xml",
+			"allowSyntaxExtensions40": "off",
+			"parameters": [{"name": "mode", "value": "write"}],
+			"messageEscaping": "adaptive",
+			"group": {
+				"kind": "build"
+			},
+			"problemMatcher": [
+				"$saxon-xslt"
+			]
+		},
+		{
+			"type": "xslt",
+			"label": "run parse example",
+			"saxonJar": "${config:XSLT.tasks.saxonJar}",
+			"xsltFile": "${workspaceFolder}/examples/demo.xsl",
+			"xmlSource": "${workspaceFolder}/examples/demo.xsl",
+			"initialTemplate": "",
+			"resultPath": "${workspaceFolder}/examples/out/empty.xml",
+			"allowSyntaxExtensions40": "off",
+			"parameters": [{"name": "mode", "value": "read"}],
+			"messageEscaping": "adaptive",
+			"group": {
+				"kind": "build"
+			},
+			"problemMatcher": [
+				"$saxon-xslt"
+			]
+		}
+	]
+}s
