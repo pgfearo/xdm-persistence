@@ -4,6 +4,16 @@ A persistence solution for the XPath 3.1 Data Model (XDM): serialize any XDM
 value — nodes, maps, arrays, and atomic values, in any combination or nesting
 — to XML, and parse that XML back into an equivalent value.
 
+## Background
+
+The starting idea — mirroring an XDM value's shape into an XML tree — comes
+from [xpath-result-serializer](https://github.com/pgfearo/xpath-result-serializer),
+which used that tree to pretty-print XPath results for debugging (truncated
+text, XPath locations, ANSI colors) but was never meant to be parsed back.
+The redesign for genuine round-tripping — the typed atomic-value encoding,
+the namespaced wrapper vocabulary, and the parser — was implemented with
+[Claude](https://claude.com/claude-code).
+
 ## How it works
 
 Every value is mirrored into an XML tree in the `xdm:` namespace
