@@ -6,13 +6,9 @@
                 version="3.0">
 
   <!--
-       Basic round-trip test: build a map, serialize it, parse that back,
-       then serialize the result again. The test passes if the two
-       serializations are deep-equal - i.e. parse(serialize(v)) is
-       something serialize() treats as identical to v, without relying on
-       comparing against the original map directly (map key/value order
-       is not significant, but deep-equal on the XML serializations is a
-       stable, order-sensitive check that both round trips agree on).
+       Basic round-trip test: build a map, serialize it, then parse that
+       back. Passes if deep-equal($sampleValue, xdm:parse(xdm:serialize($sampleValue)))
+       - the core requirement documented in the README.
   -->
 
   <xsl:import href="../src/xdm-persistence.xsl"/>
@@ -29,19 +25,18 @@
     }"/>
 
   <xsl:template name="xsl:initial-template">
-    <xsl:variable name="serialized1" as="document-node()" select="xdm:serialize($sampleValue)"/>
-    <xsl:variable name="restored" as="item()*" select="xdm:parse($serialized1)"/>
-    <xsl:variable name="serialized2" as="document-node()" select="xdm:serialize($restored)"/>
-    <xsl:variable name="passed" as="xs:boolean" select="deep-equal($serialized1, $serialized2)"/>
+    <xsl:variable name="serialized" as="document-node()" select="xdm:serialize($sampleValue)"/>
+    <xsl:variable name="restored" as="item()*" select="xdm:parse($serialized)"/>
+    <xsl:variable name="passed" as="xs:boolean" select="deep-equal($sampleValue, $restored)"/>
 
     <xsl:choose>
       <xsl:when test="$passed">
-        <xsl:message select="'PASS: map round-trip serializes identically' || '&#10;'"/>
+        <xsl:message select="'PASS: map round-trip preserves the original value' || '&#10;'"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:sequence select="'FAIL: second serialization differs from the first' || '&#10;'"/>
-        <xsl:sequence select="'--- first ---' || '&#10;' || serialize($serialized1, map{'method':'xml', 'indent': true()}) || '&#10;'"/>
-        <xsl:sequence select="'--- second ---' || '&#10;' || serialize($serialized2, map{'method':'xml', 'indent': true()}) || '&#10;'"/>
+        <xsl:sequence select="'FAIL: parsed value differs from the original' || '&#10;'"/>
+        <xsl:sequence select="'--- serialized ---' || '&#10;' || serialize($serialized, map{'method':'xml', 'indent': true()}) || '&#10;'"/>
+        <xsl:sequence select="'--- restored, re-serialized ---' || '&#10;' || serialize(xdm:serialize($restored), map{'method':'xml', 'indent': true()}) || '&#10;'"/>
         <xsl:message terminate="yes" select="'Test failed'"/>
       </xsl:otherwise>
     </xsl:choose>

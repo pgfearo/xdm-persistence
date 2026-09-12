@@ -4,6 +4,15 @@ A persistence solution for the XPath 3.1 Data Model (XDM): serialize any XDM
 value — nodes, maps, arrays, and atomic values, in any combination or nesting
 — to XML, and parse that XML back into an equivalent value.
 
+The requirement is that the following expression MUST return true for every supported XDM value.
+
+```xquery
+deep-equal(
+  $x, 
+  xdm:parse(xdm:serialize($x))
+)
+```
+
 ## Background
 
 The starting idea — mirroring an XDM value's shape into an XML tree — comes
