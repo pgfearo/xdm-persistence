@@ -16,8 +16,7 @@
        java -jar saxon.jar -xsl:demo.xsl -it mode=read
   -->
   
-  <xsl:import href="../src/xdm-serializer.xsl"/>
-  <xsl:import href="../src/xdm-parser.xsl"/>
+  <xsl:import href="../src/xdm-persistence.xsl"/>
   
   <xsl:param name="mode" as="xs:string" select="'write'"/>
   <xsl:param name="data-file" as="xs:string" select="'out/demo-data.xml'"/>
@@ -47,7 +46,7 @@
         <xsl:call-template name="write"/>
       </xsl:when>
       <xsl:when test="$mode eq 'read'">
-        <xsl:call-template name="read"/>
+        <xsl:call-template name="read-into-html"/>
       </xsl:when>
       <xsl:otherwise>
         <xsl:message terminate="yes" select="'Unknown mode: ' || $mode || ' (expected write or read)'"/>
@@ -62,7 +61,7 @@
     <xsl:sequence select="'Wrote ' || $data-uri || '&#10;'"/>
   </xsl:template>
   
-  <xsl:template name="read">
+  <xsl:template name="read-into-html">
     <xsl:variable name="restored" as="item()*" select="xdm:parse(doc($data-uri))"/>
     <xsl:variable name="m" as="map(*)" select="$restored[1]"/>
     <xsl:result-document href="{$read-uri}" method="html" indent="yes">
