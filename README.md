@@ -41,13 +41,17 @@ Every value is mirrored into an XML tree in the `xdm:` namespace
 - **Arrays** become `xdm:array`/`xdm:member`, the same way.
 - **Atomic values** become `xdm:atomic`, tagged with the precise built-in
   XSD type (`xs:integer`, `xs:date`, `xs:QName`, ...) so the value casts
-  back to exactly the same type, not just "string/number/boolean".
+  back to exactly the same type, not just "string/number/boolean". The XML
+  Schema namespace is declared on the root element (as `xs:`), so `type`
+  and `key-type` are genuine, resolvable QNames — a document that binds
+  that namespace to a different prefix parses just as well.
 
 For example, `map { 'name': 'Ada Lovelace', 'scores': (7, 9, 10), 'bio': <p>Mathematician.</p> }`
 serializes to:
 
 ```xml
-<xdm:sequence xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence">
+<xdm:sequence xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <xdm:item>
     <xdm:map>
       <xdm:entry key="scores" key-type="xs:string">

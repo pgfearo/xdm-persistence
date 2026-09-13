@@ -13,6 +13,26 @@
   -->
 
   <xsl:variable name="xdm:ns" as="xs:string" select="'http://deltaxignia.com/ns/xdm-persistence'"/>
+  <xsl:variable name="xdm:xsd-ns" as="xs:string" select="'http://www.w3.org/2001/XMLSchema'"/>
+
+  <!-- Resolves a type/key-type attribute (e.g. type="xs:integer") to its
+       canonical 'xs:localName' form, using genuine namespace resolution
+       rather than a literal string match on the 'xs' prefix - so a document
+       that binds the XML Schema namespace to a different prefix still
+       parses correctly. Terminates with a clear error if the attribute
+       resolves to some other namespace, rather than silently degrading the
+       value (e.g. to xs:untypedAtomic). -->
+  <xsl:function name="xdm:resolve-type-name" as="xs:string">
+    <xsl:param name="typeAttr" as="attribute()"/>
+    <xsl:variable name="qname" as="xs:QName" select="resolve-QName($typeAttr, $typeAttr/..)"/>
+    <xsl:if test="namespace-uri-from-QName($qname) ne $xdm:xsd-ns">
+      <xsl:message terminate="yes" select="
+        'xdm-persistence: ' || name($typeAttr) || '=&quot;' || string($typeAttr) ||
+        '&quot; resolves to namespace ''' || namespace-uri-from-QName($qname) ||
+        ''' - expected the XML Schema namespace (' || $xdm:xsd-ns || ')'"/>
+    </xsl:if>
+    <xsl:sequence select="'xs:' || local-name-from-QName($qname)"/>
+  </xsl:function>
 
   <!-- Most-specific built-in XSD atomic type name for a value (e.g. 'xs:integer').
        Branches are ordered most-derived-first so a subtype is never misreported

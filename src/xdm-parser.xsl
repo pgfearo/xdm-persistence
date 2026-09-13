@@ -73,7 +73,7 @@
 
   <xsl:function name="xdm:parse-atomic" as="xs:anyAtomicType">
     <xsl:param name="atomicEl" as="element(xdm:atomic)"/>
-    <xsl:variable name="type" as="xs:string" select="$atomicEl/@type"/>
+    <xsl:variable name="type" as="xs:string" select="xdm:resolve-type-name($atomicEl/@type)"/>
     <xsl:sequence select="
       if ($type eq 'xs:QName') then xdm:cast-qname($atomicEl/@uri, string($atomicEl))
       else xdm:cast-atomic($type, string($atomicEl))"/>
@@ -89,7 +89,7 @@
 
   <xsl:function name="xdm:parse-key" as="xs:anyAtomicType">
     <xsl:param name="entry" as="element(xdm:entry)"/>
-    <xsl:variable name="keyType" as="xs:string" select="$entry/@key-type"/>
+    <xsl:variable name="keyType" as="xs:string" select="xdm:resolve-type-name($entry/@key-type)"/>
     <xsl:sequence select="
       if ($keyType eq 'xs:QName') then xdm:cast-qname($entry/@key-uri, string($entry/@key))
       else xdm:cast-atomic($keyType, string($entry/@key))"/>

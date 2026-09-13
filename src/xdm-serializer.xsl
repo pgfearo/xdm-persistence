@@ -4,7 +4,7 @@
                 xmlns:map="http://www.w3.org/2005/xpath-functions/map"
                 xmlns:array="http://www.w3.org/2005/xpath-functions/array"
                 xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence"
-                exclude-result-prefixes="#all"
+                exclude-result-prefixes="xsl map array"
                 version="3.0">
 
   <!--
@@ -18,7 +18,7 @@
   <xsl:function name="xdm:serialize" as="document-node()">
     <xsl:param name="value" as="item()*"/>
     <xsl:document>
-      <xdm:sequence>
+      <xdm:sequence xmlns:xs="http://www.w3.org/2001/XMLSchema">
         <xsl:sequence select="xdm:build-item-seq($value)"/>
       </xdm:sequence>
     </xsl:document>
