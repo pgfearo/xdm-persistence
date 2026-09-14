@@ -74,6 +74,20 @@ Note `scores` holding three `xdm:item`s under one `xdm:entry` (a map value is an
 arbitrary sequence, not just a single item), and `bio` holding the `<p>` element
 completely unwrapped, exactly as it was written.
 
+## Abbreviated XDM Syntax Views
+
+The above example is quite verbose, this same XDM can be rendered more simply (but less precisely) as:
+
+```js
+{
+  'scores': (7, 9, 10),
+  'bio': <p>Mathematician.</p>,
+  'name': 'Ada Lovelace'
+}
+```
+
+The companion __[xdm-viewer](https://github.com/pgfearo/xdm-viewer)__ project provides alternate html and text views with this json-like syntax on top of the serialized xdm. __The abbreviated syntax improves readability but by design does not support round-tripping.__
+
 ## Files
 
 | File | Purpose |
