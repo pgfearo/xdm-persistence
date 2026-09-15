@@ -160,4 +160,62 @@
     </xsl:choose>
   </xsl:function>
 
+  <!-- The distinct (by identity) documents referenced anywhere in $refs -
+       one pool entry per document, however many nodes within it are
+       actually referenced. -->
+  <xsl:function name="xdm:distinct-pool-docs" as="document-node()*">
+    <xsl:param name="refs" as="node()*"/>
+    <xsl:variable name="roots" as="document-node()*" select="for $r in $refs return root($r)"/>
+    <xsl:sequence select="$roots | $roots"/>
+  </xsl:function>
+
+  <!-- Pass 2: a structural copy of $node, adding xdm:key="{generate-id(.)}"
+       to every element that's a member of $anchorIds (a set built from
+       xdm:distinct-anchors, keyed by generate-id() for an O(1) test per
+       element rather than a linear scan). Everything else - the element's
+       own name, namespaces and attributes, and every non-element node -
+       is copied through completely unchanged; only elements can carry
+       the marker, and only elements that are actually anchors get one. -->
+  <xsl:function name="xdm:copy-with-keys" as="node()*">
+    <xsl:param name="node" as="node()"/>
+    <xsl:param name="anchorIds" as="map(*)"/>
+    <xsl:choose>
+      <xsl:when test="$node instance of element()">
+        <xsl:for-each select="$node">
+          <xsl:copy>
+            <xsl:if test="map:contains($anchorIds, generate-id(.))">
+              <xsl:attribute name="xdm:key" select="generate-id(.)"/>
+            </xsl:if>
+            <xsl:copy-of select="@*"/>
+            <xsl:for-each select="node()">
+              <xsl:sequence select="xdm:copy-with-keys(., $anchorIds)"/>
+            </xsl:for-each>
+          </xsl:copy>
+        </xsl:for-each>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy-of select="$node"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:function>
+
+  <!-- The whole xdm:documents pool: one xdm:pool-doc per distinct
+       referenced document (id = xdm:doc-id, the document's own URI when
+       it has one), each holding an annotated copy of that document's
+       children. -->
+  <xsl:function name="xdm:build-documents-pool" as="element(xdm:documents)">
+    <xsl:param name="refs" as="node()*"/>
+    <xsl:variable name="anchors" as="node()*" select="xdm:distinct-anchors($refs)"/>
+    <xsl:variable name="anchorIds" as="map(*)" select="map:merge($anchors ! map:entry(generate-id(.), true()))"/>
+    <xdm:documents>
+      <xsl:for-each select="xdm:distinct-pool-docs($refs)">
+        <xdm:pool-doc id="{xdm:doc-id(.)}">
+          <xsl:for-each select="./node()">
+            <xsl:sequence select="xdm:copy-with-keys(., $anchorIds)"/>
+          </xsl:for-each>
+        </xdm:pool-doc>
+      </xsl:for-each>
+    </xdm:documents>
+  </xsl:function>
+
 </xsl:stylesheet>
