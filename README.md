@@ -4,6 +4,8 @@ A persistence solution for the XPath 3.1 Data Model (XDM): serialize any XDM
 value — nodes, maps, arrays, and atomic values, in any combination or nesting
 — to XML, and parse that XML back into an equivalent value.
 
+### Deep Equal
+
 Two modes are available. The default mode's requirement is that the
 following expression MUST return true for every supported XDM value:
 
@@ -14,20 +16,13 @@ deep-equal(
 )
 ```
 
+### Node Identity and Node Traversal
+
 An opt-in [reference-preserving mode](#reference-preserving-mode) goes
 further for node-valued data: it preserves node *identity* (the same node
 referenced twice comes back as the same node) and full axis navigation
 (`ancestor::`, `following-sibling::`, ...) across independently-referenced
 nodes from the same source document, `deep-equal` still holds.
-## Background
-
-The starting idea — mirroring an XDM value's shape into an XML tree — comes
-from [xpath-result-serializer](https://github.com/pgfearo/xpath-result-serializer),
-which used that tree to pretty-print XPath results for debugging (truncated
-text, XPath locations, ANSI colors) but was never meant to be parsed back.
-The redesign for genuine round-tripping — the typed atomic-value encoding,
-the namespaced wrapper vocabulary, and the parser — was implemented with
-[Claude](https://claude.com/claude-code).
 
 ## How it works
 
@@ -116,7 +111,7 @@ This is a distinct XML format (`xdm:context` at the root, not
 `xdm:sequence`) that the default mode's parser can't read, and vice versa.
 If you're handed a persisted document without knowing in advance which mode
 wrote it, use `xdm:parse-any($doc)` (or check first with
-`xdm:is-refs-format($doc)`) rather than guessing.
+`xdm:is-refs-format($doc)`).
 
 `base-uri()` of a resolved node is also restored to the original source
 document's location (via `xml:base`) when there was a real one to restore —
@@ -144,8 +139,7 @@ The above example is quite verbose, this same XDM can be rendered more simply (b
 ```js
 {
   'scores': (7, 9, 10),
-  'bio':
-  <p>Mathematician.</p>,
+  'bio': <p>Mathematician.</p>,
   'name': 'Ada Lovelace'
 }
 ```
