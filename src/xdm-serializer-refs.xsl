@@ -23,6 +23,13 @@
        a synthetic fragment). A node whose root() is NOT a document-node()
        (a one-off constructed fragment, with no document worth pooling) is
        embedded inline exactly as xdm-serializer.xsl already does.
+
+       A reference is a plain positional path from the pooled document's
+       own children down to the node (see xdm:node-path-steps) - not a
+       marker attribute + xsl:key lookup. This means the pool is a
+       byte-for-byte copy-of the original document, with nothing added to
+       it: no xdm:key or any other annotation ever appears in a resolved
+       node, since nothing was ever written into the tree to find it.
   -->
 
   <xsl:import href="xdm-types.xsl"/>
@@ -32,10 +39,11 @@
        document-node() - i.e. every reference that needs to be resolved
        against a pooled document rather than embedded inline. The same
        node instance appears once per occurrence it's found at (not
-       deduplicated here); xdm:distinct-anchors below does the
-       deduplication, by anchor identity, for pass 2's annotation step.
-       Map keys are never node()s (xs:anyAtomicType only), so only values
-       need visiting. -->
+       deduplicated here); xdm:distinct-pool-docs below only needs to
+       dedupe by *document*, not by individual referenced node, since the
+       whole document is pooled as-is regardless of how many of its nodes
+       are actually referenced. Map keys are never node()s (xs:anyAtomicType
+       only), so only values need visiting. -->
   <xsl:function name="xdm:collect-doc-refs" as="node()*">
     <xsl:param name="value" as="item()*"/>
     <xsl:for-each select="$value">
@@ -63,74 +71,47 @@
     </xsl:choose>
   </xsl:function>
 
-  <!-- The nearest addressable "anchor" for a node: itself if it's already
-       an element (elements always get their own xdm:key when pooled),
-       otherwise its owning element (an attribute, namespace node, text,
-       comment or PI that's a child of an element - parent::* also covers
-       attribute/namespace nodes, since "parent" for those means "owning
-       element" per XDM), otherwise the containing document node itself
-       (a comment/PI that's a direct child of the document node, outside
-       the root element - document nodes can't carry an xdm:key, so that
-       case is addressed relative to the pooled document itself rather
-       than via key lookup). -->
-  <xsl:function name="xdm:anchor-of" as="node()">
-    <xsl:param name="node" as="node()"/>
-    <xsl:sequence select="
-      if ($node instance of element()) then $node
-      else if (exists($node/parent::*)) then $node/parent::*
-      else root($node)"/>
-  </xsl:function>
-
-  <!-- How to find $node starting from xdm:anchor-of($node):
-       '0'          - the anchor element is itself the referenced node
-       '@Q{uri}local' - an attribute, addressed by EQName (immune to
-                        which prefix, if any, the source document used)
-       '{prefix}uri'  - a namespace node (prefix is '' for the default
-                        namespace)
-       a plain integer - the 1-based ordinal position of the node among
-                        ALL child nodes (any kind) of its anchor - works
-                        identically whether the anchor is an element or
-                        (for the document-level fallback above) a
-                        document node, since preceding-sibling::node()
-                        behaves the same either way. -->
-  <xsl:function name="xdm:position-code" as="xs:string">
-    <xsl:param name="node" as="node()"/>
-    <xsl:choose>
-      <xsl:when test="$node instance of element()">
-        <xsl:sequence select="'0'"/>
-      </xsl:when>
-      <xsl:when test="$node instance of attribute()">
-        <xsl:sequence select="'@' || xdm:eqname-of(node-name($node))"/>
-      </xsl:when>
-      <xsl:when test="$node instance of namespace-node()">
-        <xsl:sequence select="'{' || name($node) || '}' || string($node)"/>
-      </xsl:when>
-      <xsl:otherwise> <!-- text, comment or processing-instruction -->
-        <xsl:sequence select="string(count($node/preceding-sibling::node()) + 1)"/>
-      </xsl:otherwise>
-    </xsl:choose>
-  </xsl:function>
-
   <xsl:function name="xdm:eqname-of" as="xs:string">
     <xsl:param name="qname" as="xs:QName"/>
     <xsl:sequence select="'Q{' || namespace-uri-from-QName($qname) || '}' || local-name-from-QName($qname)"/>
   </xsl:function>
 
-  <!-- The distinct (by identity) anchor nodes for a set of references -
-       exactly the set of nodes that need an xdm:key added when the pool
-       document they belong to is copied. The '|' union operator
-       deduplicates by node identity and returns document order, so a
-       node referenced many times (or several references sharing one
-       anchor) only appears once. -->
-  <xsl:function name="xdm:distinct-anchors" as="node()*">
-    <xsl:param name="refs" as="node()*"/>
-    <xsl:variable name="anchors" as="node()*" select="for $r in $refs return xdm:anchor-of($r)"/>
-    <xsl:sequence select="$anchors | $anchors"/>
+  <!-- The positional path from the pooled document's own node() children
+       down to $node, as a sequence of step codes (outermost first):
+         a plain integer - the 1-based ordinal position of a step among
+                            ALL node() children of its parent (works
+                            identically whether that parent is the
+                            document node itself, at the outermost step,
+                            or an element at any deeper step)
+         '@Q{uri}local'   - an attribute, addressed by EQName (immune to
+                            which prefix, if any, the source document
+                            used) - only ever the last step
+         '{prefix}uri'    - a namespace node (prefix is '' for the
+                            default namespace) - only ever the last step
+       $node itself being a document-node() (referenced directly, not a
+       node within one) is the one case with zero steps - resolved by
+       reconstructing a document node from the whole pool entry. -->
+  <xsl:function name="xdm:node-path-steps" as="xs:string*">
+    <xsl:param name="node" as="node()"/>
+    <xsl:choose>
+      <xsl:when test="$node instance of document-node()">
+        <xsl:sequence select="()"/>
+      </xsl:when>
+      <xsl:when test="$node instance of attribute()">
+        <xsl:sequence select="(xdm:node-path-steps($node/parent::*), '@' || xdm:eqname-of(node-name($node)))"/>
+      </xsl:when>
+      <xsl:when test="$node instance of namespace-node()">
+        <xsl:sequence select="(xdm:node-path-steps($node/parent::*), '{' || name($node) || '}' || string($node))"/>
+      </xsl:when>
+      <xsl:otherwise> <!-- element, text, comment or processing-instruction -->
+        <xsl:variable name="ord" as="xs:string" select="string(count($node/preceding-sibling::node()) + 1)"/>
+        <xsl:variable name="parent" as="element()?" select="$node/parent::*"/>
+        <xsl:sequence select="if (exists($parent)) then (xdm:node-path-steps($parent), $ord) else $ord"/>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:function>
 
-  <!-- Identifies a pooled document itself, for the document-level
-       fallback addressing case (see xdm:anchor-of) where there's no
-       anchor element to carry an xdm:key: the document's own URI when it
+  <!-- Identifies a pooled document itself: the document's own URI when it
        has one (e.g. read via doc()), otherwise a generated id stable for
        the lifetime of this serialize() call. -->
   <xsl:function name="xdm:doc-id" as="xs:string">
@@ -141,23 +122,16 @@
   </xsl:function>
 
   <!-- The <xdm:node-ref> marker that replaces an inline copy of $node in
-       the xdm:sequence part of the output. Two addressing forms:
-       key+pos for the common case (anchor is an element, found via
-       xsl:key against the pool on parse), doc+pos for the document-level
-       fallback (anchor is a document node, which can't carry an xdm:key,
-       so it's addressed by the pool entry's own id instead). -->
+       the xdm:sequence part of the output: which pool entry to resolve
+       against, plus the positional path within it (xdm:node-path-steps),
+       one <xdm:step> per path segment, in order. -->
   <xsl:function name="xdm:build-node-ref" as="element(xdm:node-ref)">
     <xsl:param name="node" as="node()"/>
-    <xsl:variable name="anchor" as="node()" select="xdm:anchor-of($node)"/>
-    <xsl:variable name="pos" as="xs:string" select="xdm:position-code($node)"/>
-    <xsl:choose>
-      <xsl:when test="$anchor instance of element()">
-        <xdm:node-ref key="{generate-id($anchor)}" pos="{$pos}"/>
-      </xsl:when>
-      <xsl:otherwise>
-        <xdm:node-ref doc="{xdm:doc-id($anchor)}" pos="{$pos}"/>
-      </xsl:otherwise>
-    </xsl:choose>
+    <xdm:node-ref doc="{xdm:doc-id(root($node))}">
+      <xsl:for-each select="xdm:node-path-steps($node)">
+        <xdm:step pos="{.}"/>
+      </xsl:for-each>
+    </xdm:node-ref>
   </xsl:function>
 
   <!-- The distinct (by identity) documents referenced anywhere in $refs -
@@ -169,50 +143,17 @@
     <xsl:sequence select="$roots | $roots"/>
   </xsl:function>
 
-  <!-- Pass 2: a structural copy of $node, adding xdm:key="{generate-id(.)}"
-       to every element that's a member of $anchorIds (a set built from
-       xdm:distinct-anchors, keyed by generate-id() for an O(1) test per
-       element rather than a linear scan). Everything else - the element's
-       own name, namespaces and attributes, and every non-element node -
-       is copied through completely unchanged; only elements can carry
-       the marker, and only elements that are actually anchors get one. -->
-  <xsl:function name="xdm:copy-with-keys" as="node()*">
-    <xsl:param name="node" as="node()"/>
-    <xsl:param name="anchorIds" as="map(*)"/>
-    <xsl:choose>
-      <xsl:when test="$node instance of element()">
-        <xsl:for-each select="$node">
-          <xsl:copy>
-            <xsl:if test="map:contains($anchorIds, generate-id(.))">
-              <xsl:attribute name="xdm:key" select="generate-id(.)"/>
-            </xsl:if>
-            <xsl:copy-of select="@*"/>
-            <xsl:for-each select="node()">
-              <xsl:sequence select="xdm:copy-with-keys(., $anchorIds)"/>
-            </xsl:for-each>
-          </xsl:copy>
-        </xsl:for-each>
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:copy-of select="$node"/>
-      </xsl:otherwise>
-    </xsl:choose>
-  </xsl:function>
-
   <!-- The whole xdm:documents pool: one xdm:pool-doc per distinct
        referenced document (id = xdm:doc-id, the document's own URI when
-       it has one), each holding an annotated copy of that document's
-       children. -->
+       it has one), each holding a plain, unannotated copy of that
+       document's own node() children - nothing is added to the tree, so
+       a node resolved from it is indistinguishable from the original. -->
   <xsl:function name="xdm:build-documents-pool" as="element(xdm:documents)">
     <xsl:param name="refs" as="node()*"/>
-    <xsl:variable name="anchors" as="node()*" select="xdm:distinct-anchors($refs)"/>
-    <xsl:variable name="anchorIds" as="map(*)" select="map:merge($anchors ! map:entry(generate-id(.), true()))"/>
     <xdm:documents>
       <xsl:for-each select="xdm:distinct-pool-docs($refs)">
         <xdm:pool-doc id="{xdm:doc-id(.)}">
-          <xsl:for-each select="./node()">
-            <xsl:sequence select="xdm:copy-with-keys(., $anchorIds)"/>
-          </xsl:for-each>
+          <xsl:copy-of select="./node()"/>
         </xdm:pool-doc>
       </xsl:for-each>
     </xdm:documents>

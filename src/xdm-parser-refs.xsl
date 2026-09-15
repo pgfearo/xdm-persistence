@@ -17,17 +17,23 @@
        Node identity is preserved for repeated references (xdm:parse(a) is
        xdm:parse(b) holds when a and b referenced the same original node),
        since every reference resolves against the one already-parsed pool
-       document rather than being copied. Known trade-off for now:
-       resolved nodes still carry the xdm:key marker attribute the pool
-       copy needed for lookup - stripping it while preserving identity for
-       repeated/cross references needs more machinery than this first cut
-       has; worth revisiting.
+       document rather than being copied. A reference is resolved by
+       walking a plain positional path (see xdm-serializer-refs.xsl's
+       xdm:node-path-steps) down an untouched, unannotated copy of the
+       original document - nothing was ever written into the pool to find
+       a node, so a resolved node is indistinguishable from the original
+       (no xdm:key or other marker attribute ever appears in it).
+
+       Known limitation: a document-node() referenced directly (as opposed
+       to a node within one) is reconstructed fresh on every resolution,
+       since there is no pre-existing document-node wrapper in the pool to
+       hand back - so identity is not preserved between two direct
+       references to the very same document-node(). Identity for every
+       node *within* a document is unaffected by this.
   -->
 
   <xsl:import href="xdm-types.xsl"/>
   <xsl:import href="xdm-parser-common.xsl"/>
-
-  <xsl:key name="xdm:anchor-by-key" match="*[@xdm:key]" use="@xdm:key"/>
 
   <xsl:function name="xdm:parse-with-refs" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
@@ -116,20 +122,16 @@
         function($acc, $m) { array:append($acc, xdm:parse-item-seq($m/xdm:item)) })"/>
   </xsl:function>
 
-  <!-- Resolves one <xdm:node-ref key="..." pos="..."/> or
-       <xdm:node-ref doc="..." pos="..."/> marker back to the actual node
-       it addresses, per xdm-serializer-refs.xsl's xdm:anchor-of/
-       xdm:position-code scheme. root($ref) is the whole persisted
-       document (the reference marker is itself part of it), used to
-       scope both the xsl:key lookup and the pool-doc-by-id lookup. -->
+  <!-- Resolves one <xdm:node-ref doc="..."><xdm:step pos="..."/>...</xdm:node-ref>
+       marker back to the actual node it addresses, per
+       xdm-serializer-refs.xsl's xdm:node-path-steps scheme: find the pool
+       entry for @doc, then walk its <xdm:step> children in order,
+       descending one level per step. -->
   <xsl:function name="xdm:resolve-node-ref" as="node()">
     <xsl:param name="ref" as="element(xdm:node-ref)"/>
-    <xsl:variable name="pos" as="xs:string" select="$ref/@pos"/>
-    <xsl:variable name="anchor" as="node()" select="
-      if ($ref/@key)
-      then key('xdm:anchor-by-key', string($ref/@key), root($ref))[1]
-      else xdm:pool-doc-by-id(string($ref/@doc), root($ref))"/>
-    <xsl:sequence select="xdm:navigate-from-anchor($anchor, $pos)"/>
+    <xsl:variable name="poolDoc" as="element(xdm:pool-doc)" select="xdm:pool-doc-by-id(string($ref/@doc), root($ref))"/>
+    <xsl:variable name="steps" as="xs:string*" select="$ref/xdm:step/string(@pos)"/>
+    <xsl:sequence select="xdm:navigate-from-doc($poolDoc, $steps)"/>
   </xsl:function>
 
   <xsl:function name="xdm:pool-doc-by-id" as="element(xdm:pool-doc)">
@@ -138,46 +140,67 @@
     <xsl:sequence select="($doc/xdm:context/xdm:documents/xdm:pool-doc[@id = $id])[1]"/>
   </xsl:function>
 
-  <!-- Interprets one xdm:position-code value relative to $anchor (an
-       element found via xsl:key, or an xdm:pool-doc found by id for the
-       document-level fallback - xdm:pool-doc/node() corresponds 1:1, in
-       order, to the original document's own node() children, same as
-       when it was built). -->
-  <xsl:function name="xdm:navigate-from-anchor" as="node()">
-    <xsl:param name="anchor" as="node()"/>
-    <xsl:param name="pos" as="xs:string"/>
+  <!-- The outermost step, if any, selects among the pool entry's own
+       node() children (xdm:pool-doc/node() corresponds 1:1, in order, to
+       the original document's own node() children, since the pool was
+       built with a plain xsl:copy-of). Zero steps means the reference was
+       to the document-node() itself - reconstructed fresh, see the header
+       comment's note on identity for that one case. -->
+  <xsl:function name="xdm:navigate-from-doc" as="node()">
+    <xsl:param name="poolDoc" as="element(xdm:pool-doc)"/>
+    <xsl:param name="steps" as="xs:string*"/>
     <xsl:choose>
-      <xsl:when test="$pos eq '0'">
-        <xsl:sequence select="$anchor"/>
-      </xsl:when>
-      <xsl:when test="starts-with($pos, '@')">
-        <xsl:sequence select="xdm:find-attribute-by-eqname($anchor, substring($pos, 2))"/>
-      </xsl:when>
-      <xsl:when test="starts-with($pos, '{')">
-        <xsl:sequence select="xdm:find-namespace-by-marker($anchor, $pos)"/>
+      <xsl:when test="empty($steps)">
+        <xsl:document>
+          <xsl:sequence select="$poolDoc/node()"/>
+        </xsl:document>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:sequence select="($anchor/node())[xs:integer($pos)]"/>
+        <xsl:variable name="first" as="node()" select="($poolDoc/node())[xs:integer($steps[1])]"/>
+        <xsl:sequence select="xdm:navigate-from-node($first, subsequence($steps, 2))"/>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:function>
 
-  <!-- $eqname is the position-code with its leading '@' already stripped,
+  <!-- Every subsequent step descends one level further from $node: an
+       ordinal step moves to ($node/node())[pos], an '@'/'{' step (only
+       ever the last one) selects an attribute or namespace node of
+       $node - which must therefore be the last step, since neither kind
+       has children of its own. -->
+  <xsl:function name="xdm:navigate-from-node" as="node()">
+    <xsl:param name="node" as="node()"/>
+    <xsl:param name="steps" as="xs:string*"/>
+    <xsl:choose>
+      <xsl:when test="empty($steps)">
+        <xsl:sequence select="$node"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:variable name="step" as="xs:string" select="$steps[1]"/>
+        <xsl:variable name="next" as="node()" select="
+          if (starts-with($step, '@')) then xdm:find-attribute-by-eqname($node, substring($step, 2))
+          else if (starts-with($step, '{')) then xdm:find-namespace-by-marker($node, $step)
+          else ($node/node())[xs:integer($step)]"/>
+        <xsl:sequence select="xdm:navigate-from-node($next, subsequence($steps, 2))"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:function>
+
+  <!-- $eqname is the step's code with its leading '@' already stripped,
        e.g. 'Q{http://example.com/foo}attr' or 'Q{}plain'. -->
   <xsl:function name="xdm:find-attribute-by-eqname" as="attribute()">
-    <xsl:param name="anchor" as="node()"/>
+    <xsl:param name="node" as="node()"/>
     <xsl:param name="eqname" as="xs:string"/>
     <xsl:variable name="uri" as="xs:string" select="substring-before(substring-after($eqname, 'Q{'), '}')"/>
     <xsl:variable name="local" as="xs:string" select="substring-after($eqname, '}')"/>
-    <xsl:sequence select="($anchor/@*[namespace-uri(.) eq $uri and local-name(.) eq $local])[1]"/>
+    <xsl:sequence select="($node/@*[namespace-uri(.) eq $uri and local-name(.) eq $local])[1]"/>
   </xsl:function>
 
-  <!-- $marker is the full position-code, e.g. '{foo}http://example.com/foo'. -->
+  <!-- $marker is the full step code, e.g. '{foo}http://example.com/foo'. -->
   <xsl:function name="xdm:find-namespace-by-marker" as="namespace-node()">
-    <xsl:param name="anchor" as="node()"/>
+    <xsl:param name="node" as="node()"/>
     <xsl:param name="marker" as="xs:string"/>
     <xsl:variable name="prefix" as="xs:string" select="substring-before(substring-after($marker, '{'), '}')"/>
-    <xsl:sequence select="($anchor/namespace::*[name() eq $prefix])[1]"/>
+    <xsl:sequence select="($node/namespace::*[name() eq $prefix])[1]"/>
   </xsl:function>
 
 </xsl:stylesheet>
