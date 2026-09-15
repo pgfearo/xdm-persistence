@@ -62,44 +62,6 @@
     </xsl:choose>
   </xsl:function>
 
-  <!-- Element and document nodes are self-describing XML already, so they
-       need no wrapper vocabulary of their own: elements are copied inline,
-       and a document's children are copied under xdm:document (a document
-       node cannot itself be a child of an element). The remaining kinds
-       have no native XML representation as a bare sequence item, so each
-       gets a small dedicated wrapper. -->
-  <xsl:function name="xdm:build-node" as="element()">
-    <xsl:param name="node" as="node()"/>
-    <xsl:param name="kind" as="xs:string"/>
-    <xsl:choose>
-      <xsl:when test="$kind eq 'element'">
-        <xsl:copy-of select="$node"/>
-      </xsl:when>
-      <xsl:when test="$kind eq 'document'">
-        <xdm:document>
-          <xsl:copy-of select="$node/node()"/>
-        </xdm:document>
-      </xsl:when>
-      <xsl:when test="$kind eq 'text'">
-        <xdm:text><xsl:value-of select="$node"/></xdm:text>
-      </xsl:when>
-      <xsl:when test="$kind eq 'comment'">
-        <xdm:comment><xsl:value-of select="$node"/></xdm:comment>
-      </xsl:when>
-      <xsl:when test="$kind eq 'processing-instruction'">
-        <xdm:pi name="{name($node)}"><xsl:value-of select="$node"/></xdm:pi>
-      </xsl:when>
-      <xsl:when test="$kind eq 'attribute'">
-        <xdm:attribute name="{local-name($node)}" uri="{namespace-uri($node)}">
-          <xsl:value-of select="$node"/>
-        </xdm:attribute>
-      </xsl:when>
-      <xsl:otherwise> <!-- namespace -->
-        <xdm:namespace prefix="{name($node)}" uri="{string($node)}"/>
-      </xsl:otherwise>
-    </xsl:choose>
-  </xsl:function>
-
   <xsl:function name="xdm:build-map" as="element(xdm:map)">
     <xsl:param name="m" as="map(*)"/>
     <xdm:map>

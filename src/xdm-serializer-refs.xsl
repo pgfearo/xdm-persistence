@@ -4,7 +4,7 @@
                 xmlns:map="http://www.w3.org/2005/xpath-functions/map"
                 xmlns:array="http://www.w3.org/2005/xpath-functions/array"
                 xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence"
-                exclude-result-prefixes="#all"
+                exclude-result-prefixes="xsl map array"
                 version="3.0">
 
   <!--
@@ -216,6 +216,89 @@
         </xdm:pool-doc>
       </xsl:for-each>
     </xdm:documents>
+  </xsl:function>
+
+  <!-- The value-tree builder: structurally the same map(*)/array(*)/
+       atomic dispatch as xdm-serializer.xsl's xdm:build-item-seq/
+       xdm:build-payload/xdm:build-map/xdm:build-array (duplicated rather
+       than shared, since the one thing that must differ - what a node
+       turns into - can't be swapped in without either changing that
+       already-shipped format or threading a function parameter through
+       proven code for a mode most callers won't use); only the node
+       branch itself is new: a reference for anything document-rooted,
+       xdm:build-node (shared) for everything else. -->
+  <xsl:function name="xdm:build-item-seq" as="element(xdm:item)*">
+    <xsl:param name="items" as="item()*"/>
+    <xsl:for-each select="$items">
+      <xdm:item>
+        <xsl:sequence select="xdm:build-payload(.)"/>
+      </xdm:item>
+    </xsl:for-each>
+  </xsl:function>
+
+  <xsl:function name="xdm:build-payload" as="element()">
+    <xsl:param name="item" as="item()"/>
+    <xsl:variable name="nodeKind" as="xs:string?" select="xdm:node-kind($item)"/>
+    <xsl:choose>
+      <xsl:when test="exists($nodeKind) and root($item) instance of document-node()">
+        <xsl:sequence select="xdm:build-node-ref($item)"/>
+      </xsl:when>
+      <xsl:when test="exists($nodeKind)">
+        <xsl:sequence select="xdm:build-node($item, $nodeKind)"/>
+      </xsl:when>
+      <xsl:when test="$item instance of map(*)">
+        <xsl:sequence select="xdm:build-map($item)"/>
+      </xsl:when>
+      <xsl:when test="$item instance of array(*)">
+        <xsl:sequence select="xdm:build-array($item)"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:sequence select="xdm:build-atomic($item)"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:function>
+
+  <xsl:function name="xdm:build-map" as="element(xdm:map)">
+    <xsl:param name="m" as="map(*)"/>
+    <xdm:map>
+      <xsl:for-each select="map:keys($m)">
+        <xsl:variable name="k" as="xs:anyAtomicType" select="."/>
+        <xsl:variable name="keyType" as="xs:string" select="xdm:type-name($k)"/>
+        <xdm:entry key="{xdm:atomic-lexical($k)}" key-type="{$keyType}">
+          <xsl:if test="$keyType eq 'xs:QName' and string-length(namespace-uri-from-QName($k)) gt 0">
+            <xsl:attribute name="key-uri" select="namespace-uri-from-QName($k)"/>
+          </xsl:if>
+          <xsl:sequence select="xdm:build-item-seq($m($k))"/>
+        </xdm:entry>
+      </xsl:for-each>
+    </xdm:map>
+  </xsl:function>
+
+  <xsl:function name="xdm:build-array" as="element(xdm:array)">
+    <xsl:param name="a" as="array(*)"/>
+    <xdm:array>
+      <xsl:for-each select="1 to array:size($a)">
+        <xdm:member>
+          <xsl:sequence select="xdm:build-item-seq($a(.))"/>
+        </xdm:member>
+      </xsl:for-each>
+    </xdm:array>
+  </xsl:function>
+
+  <!-- Entry point. xdm:context (not a bare xdm:sequence, unlike
+       xdm-serializer.xsl's format) wraps both the value tree and the
+       document pool it references into. -->
+  <xsl:function name="xdm:serialize-with-refs" as="document-node()">
+    <xsl:param name="value" as="item()*"/>
+    <xsl:variable name="refs" as="node()*" select="xdm:collect-doc-refs($value)"/>
+    <xsl:document>
+      <xdm:context xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xdm:sequence>
+          <xsl:sequence select="xdm:build-item-seq($value)"/>
+        </xdm:sequence>
+        <xsl:sequence select="xdm:build-documents-pool($refs)"/>
+      </xdm:context>
+    </xsl:document>
   </xsl:function>
 
 </xsl:stylesheet>
