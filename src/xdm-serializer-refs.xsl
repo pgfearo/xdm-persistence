@@ -123,14 +123,26 @@
     </xsl:choose>
   </xsl:function>
 
-  <!-- Identifies a pooled document itself: the document's own URI when it
-       has one (e.g. read via doc()), otherwise a generated id stable for
-       the lifetime of this serialize() call. -->
+  <!-- $doc's own URI, but only if it's a real one (e.g. read via doc()) -
+       the empty sequence for a document with no URI, or an empty-string
+       one (Saxon can return either for a constructed document, depending
+       on how it was built). Used both by xdm:doc-id below and by
+       xdm:build-documents-pool to decide whether a pool entry should
+       carry an xml:base attribute. -->
+  <xsl:function name="xdm:real-doc-uri" as="xs:string?">
+    <xsl:param name="doc" as="document-node()"/>
+    <xsl:variable name="uri" as="xs:string?" select="document-uri($doc)"/>
+    <xsl:sequence select="if (exists($uri) and string-length($uri) gt 0) then $uri else ()"/>
+  </xsl:function>
+
+  <!-- Identifies a pooled document itself: its real URI when it has one,
+       otherwise a generated id stable for the lifetime of this
+       serialize() call. -->
   <xsl:function name="xdm:doc-id" as="xs:string">
     <xsl:param name="doc" as="document-node()"/>
     <xsl:sequence select="
-      let $uri := document-uri($doc)
-      return if (exists($uri) and string-length($uri) gt 0) then $uri else generate-id($doc)"/>
+      let $uri := xdm:real-doc-uri($doc)
+      return if (exists($uri)) then $uri else generate-id($doc)"/>
   </xsl:function>
 
   <!-- The <xdm:node-ref> marker that replaces an inline copy of $node in
@@ -159,12 +171,29 @@
        referenced document (id = xdm:doc-id, the document's own URI when
        it has one), each holding a plain, unannotated copy of that
        document's own node() children - nothing is added to the tree, so
-       a node resolved from it is indistinguishable from the original. -->
+       a node resolved from it is indistinguishable from the original.
+
+       When the document has a real URI, xml:base carries it too (in
+       addition to, not instead of, the id attribute - id is a purely
+       private lookup key, safe to be an opaque generate-id() token, and
+       must stay that way even when a real URI isn't available; xml:base
+       is the standards-defined way to say "everything under here has
+       this base URI", restoring correct base-uri() for a resolved node,
+       which would otherwise default to wherever this stylesheet's own
+       xsl:document construction happened rather than the original
+       source's location). Only ever on xdm:pool-doc itself, never copied
+       onto the actual content beneath it - resolved nodes see it only
+       through base-uri()'s normal inheritance, never as a literal
+       attribute of their own. -->
   <xsl:function name="xdm:build-documents-pool" as="element(xdm:documents)">
     <xsl:param name="refs" as="node()*"/>
     <xdm:documents>
       <xsl:for-each select="xdm:distinct-pool-docs($refs)">
+        <xsl:variable name="uri" as="xs:string?" select="xdm:real-doc-uri(.)"/>
         <xdm:pool-doc id="{xdm:doc-id(.)}">
+          <xsl:if test="exists($uri)">
+            <xsl:attribute name="xml:base" select="$uri"/>
+          </xsl:if>
           <xsl:copy-of select="./node()"/>
         </xdm:pool-doc>
       </xsl:for-each>
