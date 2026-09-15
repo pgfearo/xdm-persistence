@@ -13,6 +13,8 @@
        equivalent XPath 3.1 data model value (item()*).
   -->
 
+  <xsl:import href="xdm-parser-common.xsl"/>
+
   <xsl:function name="xdm:parse" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
     <xsl:sequence select="xdm:parse-item-seq($doc/xdm:sequence/xdm:item)"/>
@@ -100,33 +102,6 @@
     <xsl:sequence select="
       fold-left($arrayEl/xdm:member, array{},
         function($acc, $m) { array:append($acc, xdm:parse-item-seq($m/xdm:item)) })"/>
-  </xsl:function>
-
-  <!-- Standalone attribute nodes cannot be constructed directly in XPath, so
-       one is built on a throwaway element and then extracted. -->
-  <xsl:function name="xdm:parse-attribute" as="attribute()">
-    <xsl:param name="el" as="element(xdm:attribute)"/>
-    <xsl:variable name="name" as="xs:string" select="$el/@name"/>
-    <xsl:variable name="uri" as="xs:string" select="$el/@uri"/>
-    <xsl:variable name="temp" as="element()">
-      <xsl:element name="{$name}" namespace="{$uri}">
-        <xsl:attribute name="{$name}" namespace="{$uri}" select="string($el)"/>
-      </xsl:element>
-    </xsl:variable>
-    <xsl:sequence select="$temp/@*"/>
-  </xsl:function>
-
-  <!-- Same trick for a standalone namespace node. -->
-  <xsl:function name="xdm:parse-namespace" as="namespace-node()">
-    <xsl:param name="el" as="element(xdm:namespace)"/>
-    <xsl:variable name="prefix" as="xs:string" select="$el/@prefix"/>
-    <xsl:variable name="uri" as="xs:string" select="$el/@uri"/>
-    <xsl:variable name="temp" as="element()">
-      <xsl:element name="tmp">
-        <xsl:namespace name="{$prefix}" select="$uri"/>
-      </xsl:element>
-    </xsl:variable>
-    <xsl:sequence select="$temp/namespace::*[name() eq $prefix]"/>
   </xsl:function>
 
 </xsl:stylesheet>
