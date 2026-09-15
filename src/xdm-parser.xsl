@@ -11,9 +11,13 @@
        (c) DeltaXignia ltd. 2026
        Reads back the XML tree produced by xdm-serializer.xsl into an
        equivalent XPath 3.1 data model value (item()*).
-  -->
 
-  <xsl:import href="xdm-parser-common.xsl"/>
+       Not self-sufficient - relies on xdm-parser-common.xsl and
+       xdm-types.xsl being imported alongside it (see xdm-persistence.xsl,
+       the master that does this). Deliberately not imported here:
+       xdm-parser-refs.xsl also imports xdm-parser-common.xsl, and
+       importing it a second time from here too would create a diamond.
+  -->
 
   <xsl:function name="xdm:parse" as="item()*">
     <xsl:param name="doc" as="document-node()"/>

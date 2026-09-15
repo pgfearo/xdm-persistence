@@ -30,10 +30,22 @@
        byte-for-byte copy-of the original document, with nothing added to
        it: no xdm:key or any other annotation ever appears in a resolved
        node, since nothing was ever written into the tree to find it.
-  -->
 
-  <xsl:import href="xdm-types.xsl"/>
-  <xsl:import href="xdm-serializer-common.xsl"/>
+       Not self-sufficient - relies on xdm-types.xsl and
+       xdm-serializer-common.xsl being imported alongside it (see
+       xdm-persistence.xsl, the master that does this). Deliberately not
+       imported here: xdm-serializer.xsl also imports
+       xdm-serializer-common.xsl, and sibling xsl:import declarations in
+       the same stylesheet get different (not equal) import precedence -
+       importing xdm-types.xsl/xdm-serializer-common.xsl here too would
+       create a diamond, and worse, xdm:build-item-seq/build-payload/
+       build-map/build-array below share their names with
+       xdm-serializer.xsl's own (different) versions of the same
+       functions - whichever module ends up with higher import precedence
+       would silently shadow the other's, so those four are named with a
+       "-refs" suffix here specifically to stay safe to import alongside
+       xdm-serializer.xsl regardless of import order.
+  -->
 
   <!-- Pass 1: every node-valued item anywhere in $value whose root() is a
        document-node() - i.e. every reference that needs to be resolved
@@ -167,17 +179,21 @@
        already-shipped format or threading a function parameter through
        proven code for a mode most callers won't use); only the node
        branch itself is new: a reference for anything document-rooted,
-       xdm:build-node (shared) for everything else. -->
-  <xsl:function name="xdm:build-item-seq" as="element(xdm:item)*">
+       xdm:build-node (shared) for everything else. Named with a "-refs"
+       suffix (unlike the shared helpers above) because xdm-serializer.xsl
+       declares its own, different functions with these same base names -
+       see the header comment on why that matters when both modules are
+       imported together. -->
+  <xsl:function name="xdm:build-item-seq-refs" as="element(xdm:item)*">
     <xsl:param name="items" as="item()*"/>
     <xsl:for-each select="$items">
       <xdm:item>
-        <xsl:sequence select="xdm:build-payload(.)"/>
+        <xsl:sequence select="xdm:build-payload-refs(.)"/>
       </xdm:item>
     </xsl:for-each>
   </xsl:function>
 
-  <xsl:function name="xdm:build-payload" as="element()">
+  <xsl:function name="xdm:build-payload-refs" as="element()">
     <xsl:param name="item" as="item()"/>
     <xsl:variable name="nodeKind" as="xs:string?" select="xdm:node-kind($item)"/>
     <xsl:choose>
@@ -188,10 +204,10 @@
         <xsl:sequence select="xdm:build-node($item, $nodeKind)"/>
       </xsl:when>
       <xsl:when test="$item instance of map(*)">
-        <xsl:sequence select="xdm:build-map($item)"/>
+        <xsl:sequence select="xdm:build-map-refs($item)"/>
       </xsl:when>
       <xsl:when test="$item instance of array(*)">
-        <xsl:sequence select="xdm:build-array($item)"/>
+        <xsl:sequence select="xdm:build-array-refs($item)"/>
       </xsl:when>
       <xsl:otherwise>
         <xsl:sequence select="xdm:build-atomic($item)"/>
@@ -199,7 +215,7 @@
     </xsl:choose>
   </xsl:function>
 
-  <xsl:function name="xdm:build-map" as="element(xdm:map)">
+  <xsl:function name="xdm:build-map-refs" as="element(xdm:map)">
     <xsl:param name="m" as="map(*)"/>
     <xdm:map>
       <xsl:for-each select="map:keys($m)">
@@ -209,18 +225,18 @@
           <xsl:if test="$keyType eq 'xs:QName' and string-length(namespace-uri-from-QName($k)) gt 0">
             <xsl:attribute name="key-uri" select="namespace-uri-from-QName($k)"/>
           </xsl:if>
-          <xsl:sequence select="xdm:build-item-seq($m($k))"/>
+          <xsl:sequence select="xdm:build-item-seq-refs($m($k))"/>
         </xdm:entry>
       </xsl:for-each>
     </xdm:map>
   </xsl:function>
 
-  <xsl:function name="xdm:build-array" as="element(xdm:array)">
+  <xsl:function name="xdm:build-array-refs" as="element(xdm:array)">
     <xsl:param name="a" as="array(*)"/>
     <xdm:array>
       <xsl:for-each select="1 to array:size($a)">
         <xdm:member>
-          <xsl:sequence select="xdm:build-item-seq($a(.))"/>
+          <xsl:sequence select="xdm:build-item-seq-refs($a(.))"/>
         </xdm:member>
       </xsl:for-each>
     </xdm:array>
@@ -235,7 +251,7 @@
     <xsl:document>
       <xdm:context xmlns:xs="http://www.w3.org/2001/XMLSchema">
         <xdm:sequence>
-          <xsl:sequence select="xdm:build-item-seq($value)"/>
+          <xsl:sequence select="xdm:build-item-seq-refs($value)"/>
         </xdm:sequence>
         <xsl:sequence select="xdm:build-documents-pool($refs)"/>
       </xdm:context>

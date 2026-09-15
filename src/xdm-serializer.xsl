@@ -13,9 +13,13 @@
        nodes, maps, arrays, atomic values, in any combination/nesting) to
        an XML tree in the xdm: namespace that xdm-parser.xsl can read back
        into an equivalent value.
-  -->
 
-  <xsl:import href="xdm-serializer-common.xsl"/>
+       Not self-sufficient - relies on xdm-serializer-common.xsl and
+       xdm-types.xsl being imported alongside it (see xdm-persistence.xsl,
+       the master that does this). Deliberately not imported here:
+       xdm-serializer-refs.xsl also imports xdm-serializer-common.xsl, and
+       importing it a second time from here too would create a diamond.
+  -->
 
   <xsl:function name="xdm:serialize" as="document-node()">
     <xsl:param name="value" as="item()*"/>

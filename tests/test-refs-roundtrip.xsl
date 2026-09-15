@@ -31,8 +31,7 @@
        the resolved value.
   -->
 
-  <xsl:import href="../src/xdm-serializer-refs.xsl"/>
-  <xsl:import href="../src/xdm-parser-refs.xsl"/>
+  <xsl:import href="../src/xdm-persistence.xsl"/>
 
   <xsl:output method="text"/>
 

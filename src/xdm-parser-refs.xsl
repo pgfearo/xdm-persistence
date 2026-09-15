@@ -30,24 +30,41 @@
        hand back - so identity is not preserved between two direct
        references to the very same document-node(). Identity for every
        node *within* a document is unaffected by this.
-  -->
 
-  <xsl:import href="xdm-types.xsl"/>
-  <xsl:import href="xdm-parser-common.xsl"/>
+       Not self-sufficient - relies on xdm-types.xsl and
+       xdm-parser-common.xsl being imported alongside it (see
+       xdm-persistence.xsl, the master that does this). Deliberately not
+       imported here: xdm-parser.xsl also imports xdm-parser-common.xsl,
+       and sibling xsl:import declarations in the same stylesheet get
+       different (not equal) import precedence - importing xdm-types.xsl/
+       xdm-parser-common.xsl here too would create a diamond, and worse,
+       xdm:parse-item-seq/parse-item/parse-atomic/parse-map/parse-key/
+       parse-array below share their names with xdm-parser.xsl's own
+       (different) versions of the same functions - whichever module ends
+       up with higher import precedence would silently shadow the
+       other's, so those are named with a "-refs" suffix here
+       specifically to stay safe to import alongside xdm-parser.xsl
+       regardless of import order.
+  -->
 
   <xsl:function name="xdm:parse-with-refs" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
-    <xsl:sequence select="xdm:parse-item-seq($doc/xdm:context/xdm:sequence/xdm:item)"/>
+    <xsl:sequence select="xdm:parse-item-seq-refs($doc/xdm:context/xdm:sequence/xdm:item)"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-item-seq" as="item()*">
+  <!-- Named with a "-refs" suffix (unlike the shared helpers imported
+       from xdm-parser-common.xsl) because xdm-parser.xsl declares its
+       own, different functions with these same base names - see the
+       header comment on why that matters when both modules are imported
+       together. -->
+  <xsl:function name="xdm:parse-item-seq-refs" as="item()*">
     <xsl:param name="items" as="element(xdm:item)*"/>
     <xsl:for-each select="$items">
-      <xsl:sequence select="xdm:parse-item(.)"/>
+      <xsl:sequence select="xdm:parse-item-refs(.)"/>
     </xsl:for-each>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-item" as="item()*">
+  <xsl:function name="xdm:parse-item-refs" as="item()*">
     <xsl:param name="item" as="element(xdm:item)"/>
     <xsl:variable name="payload" as="element()" select="$item/*[1]"/>
     <xsl:choose>
@@ -55,13 +72,13 @@
         <xsl:sequence select="xdm:resolve-node-ref($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:atomic">
-        <xsl:sequence select="xdm:parse-atomic($payload)"/>
+        <xsl:sequence select="xdm:parse-atomic-refs($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:map">
-        <xsl:sequence select="xdm:parse-map($payload)"/>
+        <xsl:sequence select="xdm:parse-map-refs($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:array">
-        <xsl:sequence select="xdm:parse-array($payload)"/>
+        <xsl:sequence select="xdm:parse-array-refs($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:text">
         <xsl:value-of select="string($payload)"/>
@@ -91,7 +108,7 @@
     </xsl:choose>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-atomic" as="xs:anyAtomicType">
+  <xsl:function name="xdm:parse-atomic-refs" as="xs:anyAtomicType">
     <xsl:param name="atomicEl" as="element(xdm:atomic)"/>
     <xsl:variable name="type" as="xs:string" select="xdm:resolve-type-name($atomicEl/@type)"/>
     <xsl:sequence select="
@@ -99,15 +116,15 @@
       else xdm:cast-atomic($type, string($atomicEl))"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-map" as="map(*)">
+  <xsl:function name="xdm:parse-map-refs" as="map(*)">
     <xsl:param name="mapEl" as="element(xdm:map)"/>
     <xsl:sequence select="
       map:merge(
         for $entry in $mapEl/xdm:entry
-        return map:entry(xdm:parse-key($entry), xdm:parse-item-seq($entry/xdm:item)))"/>
+        return map:entry(xdm:parse-key-refs($entry), xdm:parse-item-seq-refs($entry/xdm:item)))"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-key" as="xs:anyAtomicType">
+  <xsl:function name="xdm:parse-key-refs" as="xs:anyAtomicType">
     <xsl:param name="entry" as="element(xdm:entry)"/>
     <xsl:variable name="keyType" as="xs:string" select="xdm:resolve-type-name($entry/@key-type)"/>
     <xsl:sequence select="
@@ -115,11 +132,11 @@
       else xdm:cast-atomic($keyType, string($entry/@key))"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-array" as="array(*)">
+  <xsl:function name="xdm:parse-array-refs" as="array(*)">
     <xsl:param name="arrayEl" as="element(xdm:array)"/>
     <xsl:sequence select="
       fold-left($arrayEl/xdm:member, array{},
-        function($acc, $m) { array:append($acc, xdm:parse-item-seq($m/xdm:item)) })"/>
+        function($acc, $m) { array:append($acc, xdm:parse-item-seq-refs($m/xdm:item)) })"/>
   </xsl:function>
 
   <!-- Resolves one <xdm:node-ref doc="..."><xdm:step pos="..."/>...</xdm:node-ref>
