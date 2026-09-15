@@ -123,11 +123,14 @@ document's location (via `xml:base`) when there was a real one to restore —
 not left pointing at wherever the value was parsed back, which is what it
 would default to otherwise.
 
-**Known limitation:** a `document-node()` referenced directly (as opposed to
-a node within one) is reconstructed fresh on every resolution, so identity
-is not preserved between two direct references to the very same
-`document-node()`. Identity for every node *within* a document is
-unaffected by this.
+`root()` of any resolved node is a clean reconstruction containing just its
+own source document's content (built once per `xdm:parse-with-refs` call,
+shared by every reference into that same document within it) — not the
+whole persisted file, and not a fresh copy per reference: a `document-node()`
+held directly as a value (`map { 'd1': $doc, 'd2': $doc }`, not an element
+within `$doc`) comes back `is`-identical across repeated references the same
+way any other node does, and `$element => root()` correctly lines up with a
+direct reference to that same document within the same call.
 
 | File | Purpose |
 |---|---|
@@ -260,7 +263,3 @@ function support — e.g. Saxon Home Edition or above, 9.8+. `xsltproc`
 - Function items other than maps and arrays (inline functions, named function
   references, partial applications) are not supported — `xdm:serialize` fails
   with `FOTY0013` if one appears in the value.
-- A `document-node()` referenced directly in
-  [reference-preserving mode](#reference-preserving-mode) doesn't preserve
-  identity between two direct references to it (nodes *within* a document
-  are unaffected) — see that section for why.

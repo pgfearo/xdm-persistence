@@ -24,12 +24,24 @@
        a node, so a resolved node is indistinguishable from the original
        (no xdm:key or other marker attribute ever appears in it).
 
-       Known limitation: a document-node() referenced directly (as opposed
-       to a node within one) is reconstructed fresh on every resolution,
-       since there is no pre-existing document-node wrapper in the pool to
-       hand back - so identity is not preserved between two direct
-       references to the very same document-node(). Identity for every
-       node *within* a document is unaffected by this.
+       xdm:parse-with-refs builds one document-node() per pool entry up
+       front (xdm:build-whole-docs-map), once per call, and every
+       resolution within that call navigates from those same nodes rather
+       than constructing its own - so two references to a document-node()
+       itself (not just to nodes within one) also come back identical, and
+       root() of any resolved node is a clean reconstruction of just its
+       own source document, not the whole persisted file. This can't be a
+       stylesheet-level global: xdm:parse-with-refs may be called on
+       different persisted documents at different points in one
+       transformation, and a single global computed once would tie the
+       cache to whichever $doc triggered it first.
+
+       xdm:resolve-node-ref/1 (no $wholeDocs map) is kept as a separate,
+       standalone entry point for a caller - such as xdm-viewer, resolving
+       one <xdm:node-ref> at a time outside any parse-with-refs call - that
+       has no such map to pass in and doesn't need cross-reference
+       identity for its use case; it still constructs its own document
+       node per call, same as before this was added.
 
        Not self-sufficient - relies on xdm-types.xsl and
        xdm-parser-common.xsl being imported alongside it (see
@@ -49,7 +61,27 @@
 
   <xsl:function name="xdm:parse-with-refs" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
-    <xsl:sequence select="xdm:parse-item-seq-refs($doc/xdm:context/xdm:sequence/xdm:item)"/>
+    <xsl:variable name="wholeDocs" as="map(*)" select="xdm:build-whole-docs-map($doc)"/>
+    <xsl:sequence select="xdm:parse-item-seq-refs($doc/xdm:context/xdm:sequence/xdm:item, $wholeDocs)"/>
+  </xsl:function>
+
+  <!-- One document-node() per pool entry, keyed by @id, built exactly
+       once per xdm:parse-with-refs call and threaded through the whole
+       resolution chain below - see the header comment. -->
+  <xsl:function name="xdm:build-whole-docs-map" as="map(*)">
+    <xsl:param name="doc" as="document-node()"/>
+    <xsl:map>
+      <xsl:for-each select="$doc/xdm:context/xdm:documents/xdm:pool-doc">
+        <xsl:map-entry key="string(@id)" select="xdm:build-whole-doc(.)"/>
+      </xsl:for-each>
+    </xsl:map>
+  </xsl:function>
+
+  <xsl:function name="xdm:build-whole-doc" as="document-node()">
+    <xsl:param name="poolDoc" as="element(xdm:pool-doc)"/>
+    <xsl:document>
+      <xsl:sequence select="$poolDoc/node()"/>
+    </xsl:document>
   </xsl:function>
 
   <!-- Named with a "-refs" suffix (unlike the shared helpers imported
@@ -59,26 +91,28 @@
        together. -->
   <xsl:function name="xdm:parse-item-seq-refs" as="item()*">
     <xsl:param name="items" as="element(xdm:item)*"/>
+    <xsl:param name="wholeDocs" as="map(*)"/>
     <xsl:for-each select="$items">
-      <xsl:sequence select="xdm:parse-item-refs(.)"/>
+      <xsl:sequence select="xdm:parse-item-refs(., $wholeDocs)"/>
     </xsl:for-each>
   </xsl:function>
 
   <xsl:function name="xdm:parse-item-refs" as="item()*">
     <xsl:param name="item" as="element(xdm:item)"/>
+    <xsl:param name="wholeDocs" as="map(*)"/>
     <xsl:variable name="payload" as="element()" select="$item/*[1]"/>
     <xsl:choose>
       <xsl:when test="$payload/self::xdm:node-ref">
-        <xsl:sequence select="xdm:resolve-node-ref($payload)"/>
+        <xsl:sequence select="xdm:resolve-node-ref($payload, $wholeDocs)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:atomic">
         <xsl:sequence select="xdm:parse-atomic-refs($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:map">
-        <xsl:sequence select="xdm:parse-map-refs($payload)"/>
+        <xsl:sequence select="xdm:parse-map-refs($payload, $wholeDocs)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:array">
-        <xsl:sequence select="xdm:parse-array-refs($payload)"/>
+        <xsl:sequence select="xdm:parse-array-refs($payload, $wholeDocs)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:text">
         <xsl:value-of select="string($payload)"/>
@@ -118,10 +152,11 @@
 
   <xsl:function name="xdm:parse-map-refs" as="map(*)">
     <xsl:param name="mapEl" as="element(xdm:map)"/>
+    <xsl:param name="wholeDocs" as="map(*)"/>
     <xsl:sequence select="
       map:merge(
         for $entry in $mapEl/xdm:entry
-        return map:entry(xdm:parse-key-refs($entry), xdm:parse-item-seq-refs($entry/xdm:item)))"/>
+        return map:entry(xdm:parse-key-refs($entry), xdm:parse-item-seq-refs($entry/xdm:item, $wholeDocs)))"/>
   </xsl:function>
 
   <xsl:function name="xdm:parse-key-refs" as="xs:anyAtomicType">
@@ -134,21 +169,56 @@
 
   <xsl:function name="xdm:parse-array-refs" as="array(*)">
     <xsl:param name="arrayEl" as="element(xdm:array)"/>
+    <xsl:param name="wholeDocs" as="map(*)"/>
     <xsl:sequence select="
       fold-left($arrayEl/xdm:member, array{},
-        function($acc, $m) { array:append($acc, xdm:parse-item-seq-refs($m/xdm:item)) })"/>
+        function($acc, $m) { array:append($acc, xdm:parse-item-seq-refs($m/xdm:item, $wholeDocs)) })"/>
   </xsl:function>
 
   <!-- Resolves one <xdm:node-ref doc="..."><xdm:step pos="..."/>...</xdm:node-ref>
        marker back to the actual node it addresses, per
        xdm-serializer-refs.xsl's xdm:node-path-steps scheme: find the pool
        entry for @doc, then walk its <xdm:step> children in order,
-       descending one level per step. -->
+       descending one level per step.
+
+       Standalone form: builds its own document node for this one call
+       (see the header comment) - for a caller with no $wholeDocs map to
+       pass in and no need for cross-reference identity, e.g. xdm-viewer
+       resolving one <xdm:node-ref> at a time. -->
   <xsl:function name="xdm:resolve-node-ref" as="node()">
     <xsl:param name="ref" as="element(xdm:node-ref)"/>
     <xsl:variable name="poolDoc" as="element(xdm:pool-doc)" select="xdm:pool-doc-by-id(string($ref/@doc), root($ref))"/>
     <xsl:variable name="steps" as="xs:string*" select="$ref/xdm:step/string(@pos)"/>
     <xsl:sequence select="xdm:navigate-from-doc($poolDoc, $steps)"/>
+  </xsl:function>
+
+  <!-- The form xdm:parse-with-refs actually uses: $wholeDocs is the map
+       built once by xdm:build-whole-docs-map, so every resolution within
+       one xdm:parse-with-refs call navigates from the same document
+       nodes rather than each constructing its own. -->
+  <xsl:function name="xdm:resolve-node-ref" as="node()">
+    <xsl:param name="ref" as="element(xdm:node-ref)"/>
+    <xsl:param name="wholeDocs" as="map(*)"/>
+    <xsl:variable name="wholeDoc" as="document-node()" select="$wholeDocs(string($ref/@doc))"/>
+    <xsl:variable name="steps" as="xs:string*" select="$ref/xdm:step/string(@pos)"/>
+    <xsl:sequence select="xdm:navigate-from-whole-doc($wholeDoc, $steps)"/>
+  </xsl:function>
+
+  <!-- Zero steps (a direct document-node() reference) needs no navigation
+       at all - $wholeDoc already *is* the resolved node, the same one
+       every other reference to this pool entry gets back too. -->
+  <xsl:function name="xdm:navigate-from-whole-doc" as="node()">
+    <xsl:param name="wholeDoc" as="document-node()"/>
+    <xsl:param name="steps" as="xs:string*"/>
+    <xsl:choose>
+      <xsl:when test="empty($steps)">
+        <xsl:sequence select="$wholeDoc"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:variable name="first" as="node()" select="($wholeDoc/node())[xs:integer($steps[1])]"/>
+        <xsl:sequence select="xdm:navigate-from-node($first, subsequence($steps, 2))"/>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:function>
 
   <xsl:function name="xdm:pool-doc-by-id" as="element(xdm:pool-doc)">

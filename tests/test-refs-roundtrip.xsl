@@ -25,10 +25,14 @@
        correctly; comments resolve both as a child of an element and as a
        direct child of the document node (the doc-level fallback case); a
        document-node() itself, referenced directly, resolves to a real
-       document node; and - the reason this mode was reworked to use
-       positional paths instead of an xdm:key marker attribute - no
-       xdm:key (or any other added attribute) ever appears anywhere in
-       the resolved value.
+       document node, and - via xdm:build-whole-docs-map, one document
+       node built per pool entry and shared by every reference into it
+       within one xdm:parse-with-refs call - comes back identical across
+       two such direct references, with root() of an ordinary element
+       reference lining up with it too; and - the reason this mode was
+       reworked to use positional paths instead of an xdm:key marker
+       attribute - no xdm:key (or any other added attribute) ever appears
+       anywhere in the resolved value.
   -->
 
   <xsl:import href="../src/xdm-persistence.xsl"/>
@@ -59,7 +63,8 @@
       'nsAttr': $nsAttr,
       'elementComment': $elementComment,
       'docComment': $docComment,
-      'wholeDoc': $src
+      'wholeDoc': $src,
+      'wholeDoc2': $src
     }"/>
 
   <xsl:variable name="serialized" as="document-node()" select="xdm:serialize-with-refs($sampleValue)"/>
@@ -86,6 +91,10 @@
       'whole document-node() reference resolves to a real document, correct root':
         $restored?wholeDoc instance of document-node()
           and local-name($restored?wholeDoc/*) eq 'family',
+      'two direct references to the same document-node() come back identical':
+        $restored?wholeDoc is $restored?wholeDoc2,
+      'root() of an ordinary element reference lines up with a direct reference to its document':
+        $restored?ref1 => root() is $restored?wholeDoc,
       'no xdm:key (or any other marker) appears anywhere in a resolved node':
         empty($restored?ref1/ancestor-or-self::*/@*[node-name(.) eq QName('http://deltaxignia.com/ns/xdm-persistence', 'xdm:key')])
     }"/>
