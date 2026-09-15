@@ -220,4 +220,62 @@
     <xsl:sequence select="($node/namespace::*[name() eq $prefix])[1]"/>
   </xsl:function>
 
+  <!-- Like xdm:resolve-node-ref, but returns every node visited along the
+       way - one per <xdm:step>, outermost first, the final resolved node
+       last - rather than only the target. For a consumer like
+       xdm-viewer building a human-readable location (e.g. an element
+       chain with disambiguating positions, ending in an attribute or a
+       processing-instruction()), each intermediate node's own name/kind
+       is needed, not just where the path ends up.
+
+       Deliberately a separate set of functions from
+       xdm:resolve-node-ref/xdm:navigate-from-doc/xdm:navigate-from-node
+       rather than reusing them: those are on xdm:parse-with-refs's hot
+       path (real value reconstruction) and have no reason to pay for
+       accumulating intermediates nothing there needs; this is an
+       additive, display-oriented entry point. -->
+  <xsl:function name="xdm:resolve-node-ref-path" as="node()+">
+    <xsl:param name="ref" as="element(xdm:node-ref)"/>
+    <xsl:variable name="poolDoc" as="element(xdm:pool-doc)" select="xdm:pool-doc-by-id(string($ref/@doc), root($ref))"/>
+    <xsl:variable name="steps" as="xs:string*" select="$ref/xdm:step/string(@pos)"/>
+    <xsl:sequence select="xdm:navigate-from-doc-path($poolDoc, $steps)"/>
+  </xsl:function>
+
+  <!-- Zero steps (a direct document-node() reference) has no intermediate
+       nodes to report - the single reconstructed document node is both
+       the first and last (only) entry. -->
+  <xsl:function name="xdm:navigate-from-doc-path" as="node()+">
+    <xsl:param name="poolDoc" as="element(xdm:pool-doc)"/>
+    <xsl:param name="steps" as="xs:string*"/>
+    <xsl:choose>
+      <xsl:when test="empty($steps)">
+        <xsl:document>
+          <xsl:sequence select="$poolDoc/node()"/>
+        </xsl:document>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:variable name="first" as="node()" select="($poolDoc/node())[xs:integer($steps[1])]"/>
+        <xsl:sequence select="xdm:navigate-from-node-path($first, subsequence($steps, 2))"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:function>
+
+  <xsl:function name="xdm:navigate-from-node-path" as="node()+">
+    <xsl:param name="node" as="node()"/>
+    <xsl:param name="steps" as="xs:string*"/>
+    <xsl:choose>
+      <xsl:when test="empty($steps)">
+        <xsl:sequence select="$node"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:variable name="step" as="xs:string" select="$steps[1]"/>
+        <xsl:variable name="next" as="node()" select="
+          if (starts-with($step, '@')) then xdm:find-attribute-by-eqname($node, substring($step, 2))
+          else if (starts-with($step, '{')) then xdm:find-namespace-by-marker($node, $step)
+          else ($node/node())[xs:integer($step)]"/>
+        <xsl:sequence select="($node, xdm:navigate-from-node-path($next, subsequence($steps, 2)))"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:function>
+
 </xsl:stylesheet>
