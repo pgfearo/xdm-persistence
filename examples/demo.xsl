@@ -55,7 +55,11 @@
   </xsl:template>
   
   <xsl:template name="write">
-    <xsl:result-document href="{$data-uri}" method="xml" indent="yes">
+    <!-- indent="no", never "yes": pretty-printing inserts whitespace-only
+         text nodes around element-only content (even single-child elements
+         like $profile below), and those come back as real extra child
+         nodes on xdm:parse() - see the README. -->
+    <xsl:result-document href="{$data-uri}" method="xml" indent="no">
       <xsl:sequence select="xdm:serialize($sampleValue)"/>
     </xsl:result-document>
     <xsl:sequence select="'Wrote ' || $data-uri || '&#10;'"/>

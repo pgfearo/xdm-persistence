@@ -123,13 +123,23 @@ xdm:parse-string($xml) as item()*
 Writing to and reading from a file:
 
 ```xml
-<xsl:result-document href="data.xml">
+<xsl:result-document href="data.xml" indent="no">
   <xsl:sequence select="xdm:serialize($value)"/>
 </xsl:result-document>
 
 <!-- later, possibly in a separate run -->
 <xsl:sequence select="xdm:parse(doc('data.xml'))"/>
 ```
+
+**Always serialize with `indent="no"`** when writing a persisted file -
+`indent="no"` is the serializer default, but it's worth setting explicitly
+and never overriding. `indent="yes"` inserts whitespace-only text nodes
+between adjacent element-only children that had none in the original value,
+and those extra text nodes come back as real content on `xdm:parse()` -
+silently breaking `deep-equal` against the original for any node with
+element-only children, with no error to warn you. If you want a persisted
+file to actually be readable, use [xdm-viewer](https://github.com/pgfearo/xdm-viewer)
+to view it rather than pretty-printing the `xdm:` XML itself.
 
 ## Example
 
