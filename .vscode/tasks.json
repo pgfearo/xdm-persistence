@@ -21,6 +21,24 @@
 		},
 		{
 			"type": "xslt",
+			"label": "run serialise-refs example",
+			"saxonJar": "${config:XSLT.tasks.saxonJar}",
+			"xsltFile": "${workspaceFolder}/examples/demo-refs.xsl",
+			"xmlSource": "${workspaceFolder}/examples/demo-refs.xsl",
+			"initialTemplate": "",
+			"resultPath": "${workspaceFolder}/examples/out/empty.xml",
+			"allowSyntaxExtensions40": "off",
+			"parameters": [{"name": "mode", "value": "write"}],
+			"messageEscaping": "adaptive",
+			"group": {
+				"kind": "build"
+			},
+			"problemMatcher": [
+				"$saxon-xslt"
+			]
+		},
+		{
+			"type": "xslt",
 			"label": "run parse example",
 			"saxonJar": "${config:XSLT.tasks.saxonJar}",
 			"xsltFile": "${workspaceFolder}/examples/demo.xsl",
@@ -43,6 +61,24 @@
 			"saxonJar": "${config:XSLT.tasks.saxonJar}",
 			"xsltFile": "${workspaceFolder}/tests/test-map-nodes-roundtrip.xsl",
 			"xmlSource": "${workspaceFolder}/tests/test-map-nodes-roundtrip.xsl",
+			"initialTemplate": "",
+			"resultPath": "${workspaceFolder}/examples/out/empty.xml",
+			"allowSyntaxExtensions40": "off",
+			"parameters": [{"name": "mode", "value": "read"}],
+			"messageEscaping": "adaptive",
+			"group": {
+				"kind": "build"
+			},
+			"problemMatcher": [
+				"$saxon-xslt"
+			]
+		},
+		{
+			"type": "xslt",
+			"label": "run test-refs-roundtrip",
+			"saxonJar": "${config:XSLT.tasks.saxonJar}",
+			"xsltFile": "${workspaceFolder}/tests/test-refs-roundtrip.xsl",
+			"xmlSource": "${workspaceFolder}/tests/test-refs-roundtrip.xsl",
 			"initialTemplate": "",
 			"resultPath": "${workspaceFolder}/examples/out/empty.xml",
 			"allowSyntaxExtensions40": "off",
