@@ -7,13 +7,27 @@
                 version="3.0">
   
   <!--
-       Demonstrates xdm-persistence end to end. mode=write serializes a
-       sample value (a map holding strings, a date, an array, a boolean,
-       and a real namespaced element) to disk; mode=read parses that file
-       back into an equivalent value in a later, independent run.
-       
-       java -jar saxon.jar -xsl:demo.xsl -it mode=write
-       java -jar saxon.jar -xsl:demo.xsl -it mode=read
+       Demonstrates the reference-preserving mode (xdm:serialize-with-refs
+       / xdm:parse-with-refs) end to end, using real files rather than
+       synthetic in-memory documents to show what that mode adds over the
+       default xdm:serialize/xdm:parse:
+         - base-uri() of a resolved node reflects the original source
+           file's location (profile1/profile2, each loaded from its own
+           file via doc()), not wherever the value was parsed back.
+         - the same node referenced twice (profile1 and profile1-again,
+           both bound to the same doc('ref-doc1.xml')/* node) comes back
+           as the identical node (`is`), not two separate copies.
+         - two independently-referenced nodes from the same source
+           document (profile1 and profile1-bio, its child) still support
+           real axis navigation between them after being parsed back
+           separately, since both resolve into one shared reconstruction
+           of that document rather than two disconnected fragments.
+       mode=write serializes a sample value to disk; mode=read parses
+       that file back and reports on all of the above in a later,
+       independent run.
+
+       java -jar saxon.jar -xsl:demo-refs.xsl -it mode=write
+       java -jar saxon.jar -xsl:demo-refs.xsl -it mode=read
   -->
   
   <xsl:import href="../src/xdm-persistence.xsl"/>
@@ -40,6 +54,8 @@
       'born': xs:date('1815-12-10'),
       'tags': array { 'mathematician', 'writer' },
       'profile1': $profile1,
+      'profile1-again': $profile1,
+      'profile1-bio': $profile1/people:bio,
       'profile2': $profile2,
       'active': true()
     }"/>
@@ -76,6 +92,8 @@
       <html>
             <p>profile1 base-uri: {$m?profile1 => base-uri()}</p>
             <p>profile2 base-uri: {$m?profile2 => base-uri()}</p>
+            <p>profile1 and profile1-again are the identical node (same node referenced twice comes back as the same node): {$m?profile1 is $m?profile1-again}</p>
+            <p>profile1-bio's parent is profile1 (ancestor:: navigation across two independently-referenced nodes from the same source document): {$m?profile1-bio/parent::people:person is $m?profile1}</p>
             <p><xsl:sequence select="'Read back ' || count($restored) || ' item(s) from ' || $data-uri || ':' || '&#10;'"/></p>
             <p><xsl:sequence select="'  name:   ' || $m?name || '&#10;'"/></p>
             <p><xsl:sequence select="'  born:   ' || $m?born || ' (' || xdm:type-name($m?born) || ')' || '&#10;'"/></p>
