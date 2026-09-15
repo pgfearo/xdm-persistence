@@ -1,0 +1,3 @@
+<people:person xmlns:people="http://example.com/people">
+    <people:bio>First programmer.</people:bio>
+</people:person>

@@ -11,6 +11,12 @@
        (c) DeltaXignia ltd. 2026
        Reads back the XML tree produced by xdm-serializer.xsl into an
        equivalent XPath 3.1 data model value (item()*).
+
+       Not self-sufficient - relies on xdm-parser-common.xsl and
+       xdm-types.xsl being imported alongside it (see xdm-persistence.xsl,
+       the master that does this). Deliberately not imported here:
+       xdm-parser-refs.xsl also imports xdm-parser-common.xsl, and
+       importing it a second time from here too would create a diamond.
   -->
 
   <xsl:function name="xdm:parse" as="item()*">
@@ -100,33 +106,6 @@
     <xsl:sequence select="
       fold-left($arrayEl/xdm:member, array{},
         function($acc, $m) { array:append($acc, xdm:parse-item-seq($m/xdm:item)) })"/>
-  </xsl:function>
-
-  <!-- Standalone attribute nodes cannot be constructed directly in XPath, so
-       one is built on a throwaway element and then extracted. -->
-  <xsl:function name="xdm:parse-attribute" as="attribute()">
-    <xsl:param name="el" as="element(xdm:attribute)"/>
-    <xsl:variable name="name" as="xs:string" select="$el/@name"/>
-    <xsl:variable name="uri" as="xs:string" select="$el/@uri"/>
-    <xsl:variable name="temp" as="element()">
-      <xsl:element name="{$name}" namespace="{$uri}">
-        <xsl:attribute name="{$name}" namespace="{$uri}" select="string($el)"/>
-      </xsl:element>
-    </xsl:variable>
-    <xsl:sequence select="$temp/@*"/>
-  </xsl:function>
-
-  <!-- Same trick for a standalone namespace node. -->
-  <xsl:function name="xdm:parse-namespace" as="namespace-node()">
-    <xsl:param name="el" as="element(xdm:namespace)"/>
-    <xsl:variable name="prefix" as="xs:string" select="$el/@prefix"/>
-    <xsl:variable name="uri" as="xs:string" select="$el/@uri"/>
-    <xsl:variable name="temp" as="element()">
-      <xsl:element name="tmp">
-        <xsl:namespace name="{$prefix}" select="$uri"/>
-      </xsl:element>
-    </xsl:variable>
-    <xsl:sequence select="$temp/namespace::*[name() eq $prefix]"/>
   </xsl:function>
 
 </xsl:stylesheet>
