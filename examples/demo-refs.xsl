@@ -72,14 +72,17 @@
   <xsl:template name="read-into-html">
     <xsl:variable name="restored" as="item()*" select="xdm:parse-with-refs(doc($data-uri))"/>
     <xsl:variable name="m" as="map(*)" select="$restored[1]"/>
-    <xsl:result-document href="{$read-uri}" method="html" indent="yes">
+    <xsl:result-document href="{$read-uri}" method="html" indent="yes" expand-text="yes">
       <html>
+            <p>profile1 base-uri: {$m?profile1 => base-uri()}</p>
+            <p>profile2 base-uri: {$m?profile2 => base-uri()}</p>
             <p><xsl:sequence select="'Read back ' || count($restored) || ' item(s) from ' || $data-uri || ':' || '&#10;'"/></p>
             <p><xsl:sequence select="'  name:   ' || $m?name || '&#10;'"/></p>
             <p><xsl:sequence select="'  born:   ' || $m?born || ' (' || xdm:type-name($m?born) || ')' || '&#10;'"/></p>
             <p><xsl:sequence select="'  tags:   ' || string-join($m?tags?*, ', ') || '&#10;'"/></p>
             <p><xsl:sequence select="'  active: ' || $m?active || '&#10;'"/></p>
-            <p><xsl:sequence select="'  profile is a real element: ' || ($m?profile instance of element()) || ', bio=' || $m?profile/people:bio || '&#10;'"/></p>
+            <p><xsl:sequence select="'  profile1 is a real element: ' || ($m?profile1 instance of element()) || ', bio=' || $m?profile1/people:bio || '&#10;'"/></p>
+            <p><xsl:sequence select="'  profile2 is a real element: ' || ($m?profile2 instance of element()) || ', bio=' || $m?profile2/people:bio || '&#10;'"/></p>
       </html>
       
     </xsl:result-document>    
