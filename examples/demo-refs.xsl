@@ -19,8 +19,8 @@
   <xsl:import href="../src/xdm-persistence.xsl"/>
   
   <xsl:param name="mode" as="xs:string" select="'write'"/>
-  <xsl:param name="data-file" as="xs:string" select="'out/demo-data.xml'"/>
-  <xsl:param name="read-file" as="xs:string" select="'out/demo-read.html'"/>
+  <xsl:param name="data-file" as="xs:string" select="'out/demo-ref-data.xml'"/>
+  <xsl:param name="read-file" as="xs:string" select="'out/demo-ref-read.html'"/>
   
   <xsl:output method="text"/>
   
@@ -64,13 +64,13 @@
          like $profile below), and those come back as real extra child
          nodes on xdm:parse() - see the README. -->
     <xsl:result-document href="{$data-uri}" method="xml" indent="no">
-      <xsl:sequence select="xdm:serialize($sampleValue)"/>
+      <xsl:sequence select="xdm:serialize-with-refs($sampleValue)"/>
     </xsl:result-document>
     <xsl:sequence select="'Wrote ' || $data-uri || '&#10;'"/>
   </xsl:template>
   
   <xsl:template name="read-into-html">
-    <xsl:variable name="restored" as="item()*" select="xdm:parse(doc($data-uri))"/>
+    <xsl:variable name="restored" as="item()*" select="xdm:parse-with-refs(doc($data-uri))"/>
     <xsl:variable name="m" as="map(*)" select="$restored[1]"/>
     <xsl:result-document href="{$read-uri}" method="html" indent="yes">
       <html>
