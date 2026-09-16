@@ -146,16 +146,16 @@ The above example is quite verbose, this same XDM can be rendered more simply (b
 
 The companion __[xdm-viewer](https://github.com/pgfearo/xdm-viewer)__ project provides alternate html and text views with this json-like syntax on top of the serialized xdm. The reference-preserving mode includes node values as well, but also identifies the document (position in the document pool) and path for each node. __The abbreviated syntax improves readability but by design does not support round-tripping.__
 
-## Files
+## Files - located in `/src` folder
 
 | File | Purpose |
 |---|---|
-| `src/xdm-types.xsl` | Shared vocabulary: the `xdm:` namespace, atomic type-name detection, and lexical cast-back |
-| `src/xdm-serializer-common.xsl` | Internal: node-kind classification and atomic/node encoding shared by both serializer modes |
-| `src/xdm-parser-common.xsl` | Internal: standalone attribute/namespace reconstruction shared by both parser modes |
-| `src/xdm-serializer.xsl` | `xdm:serialize($value)` |
-| `src/xdm-parser.xsl` | `xdm:parse($doc)` |
-| `src/xdm-persistence.xsl` | The one file to import — assembles every module above (and the [reference-preserving mode](#reference-preserving-mode)'s two files), plus `xdm:parse-any`/`xdm:is-refs-format` for reading a document without knowing in advance which mode wrote it |
+| `xdm-types.xsl` | Shared vocabulary: the `xdm:` namespace, atomic type-name detection, and lexical cast-back |
+| `xdm-serializer-common.xsl` | Internal: node-kind classification and atomic/node encoding shared by both serializer modes |
+| `xdm-parser-common.xsl` | Internal: standalone attribute/namespace reconstruction shared by both parser modes |
+| `xdm-serializer.xsl` | `xdm:serialize($value)` |
+| `xdm-parser.xsl` | `xdm:parse($doc)` |
+| `xdm-persistence.xsl` | The one file to import — assembles every module above (and the [reference-preserving mode](#reference-preserving-mode)'s two files), plus `xdm:parse-any`/`xdm:is-refs-format` for reading a document without knowing in advance which mode wrote it |
 
 ## Main XSLT Module
 The main XSLT module is `xdm-persistence.xsl`. Its fundamental role is to import all required XSLT modules for parsing or serializing the XDM.
