@@ -30,11 +30,6 @@
     </xsl:document>
   </xsl:function>
 
-  <xsl:function name="xdm:serialize-to-string" as="xs:string">
-    <xsl:param name="value" as="item()*"/>
-    <xsl:sequence select="serialize(xdm:serialize($value), map{'method':'xml', 'indent': true()})"/>
-  </xsl:function>
-
   <!-- One xdm:item per item in the sequence. Used for the top-level value,
        for a map entry's value (item()*), and for an array member's value
        (item()*) - all three are "an arbitrary XDM sequence" in the same sense. -->

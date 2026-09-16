@@ -153,19 +153,12 @@ The companion __[xdm-viewer](https://github.com/pgfearo/xdm-viewer)__ project pr
 | `src/xdm-types.xsl` | Shared vocabulary: the `xdm:` namespace, atomic type-name detection, and lexical cast-back |
 | `src/xdm-serializer-common.xsl` | Internal: node-kind classification and atomic/node encoding shared by both serializer modes |
 | `src/xdm-parser-common.xsl` | Internal: standalone attribute/namespace reconstruction shared by both parser modes |
-| `src/xdm-serializer.xsl` | `xdm:serialize($value)`, `xdm:serialize-to-string($value)` |
-| `src/xdm-parser.xsl` | `xdm:parse($doc)`, `xdm:parse-string($xml)` |
+| `src/xdm-serializer.xsl` | `xdm:serialize($value)` |
+| `src/xdm-parser.xsl` | `xdm:parse($doc)` |
 | `src/xdm-persistence.xsl` | The one file to import — assembles every module above (and the [reference-preserving mode](#reference-preserving-mode)'s two files), plus `xdm:parse-any`/`xdm:is-refs-format` for reading a document without knowing in advance which mode wrote it |
 
-Import `xdm-persistence.xsl` in your own stylesheets rather than any of the
-individual files above (or the reference-preserving mode's) — none of
-them import their own dependencies; `xdm-persistence.xsl` is the one place
-that assembles the whole dependency graph, with each module imported exactly
-once. That avoids both a duplicate-module warning and a subtler hazard: the
-two modes declare their own internal functions with some shared names
-(their public entry points are still uniquely named) that would otherwise
-silently shadow one another, depending on import order, if combined by
-hand.
+## Main XSLT Module
+The main XSLT module is `xdm-persistence.xsl`. Its fundamental role is to import all required XSLT modules for parsing or serializing the XDM.
 
 ## Usage
 
@@ -177,12 +170,6 @@ hand.
 <xsl:variable name="restored" as="item()*" select="xdm:parse($xml)"/>
 ```
 
-String in/out, for when you need actual markup text rather than a node:
-
-```xquery
-xdm:serialize-to-string($value) as xs:string
-xdm:parse-string($xml) as item()*
-```
 
 Writing to and reading from a file:
 

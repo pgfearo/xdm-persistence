@@ -24,11 +24,6 @@
     <xsl:sequence select="xdm:parse-item-seq($doc/xdm:sequence/xdm:item)"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-string" as="item()*">
-    <xsl:param name="xml" as="xs:string"/>
-    <xsl:sequence select="xdm:parse(parse-xml($xml))"/>
-  </xsl:function>
-
   <xsl:function name="xdm:parse-item-seq" as="item()*">
     <xsl:param name="items" as="element(xdm:item)*"/>
     <xsl:for-each select="$items">
