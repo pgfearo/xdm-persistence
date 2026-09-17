@@ -2,6 +2,7 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence"
+                xmlns:zxd="http://deltaxignia.com/ns/xdm-persistence/internal"
                 exclude-result-prefixes="#all"
                 version="3.0">
 
@@ -22,7 +23,7 @@
        parses correctly. Terminates with a clear error if the attribute
        resolves to some other namespace, rather than silently degrading the
        value (e.g. to xs:untypedAtomic). -->
-  <xsl:function name="xdm:resolve-type-name" as="xs:string">
+  <xsl:function name="zxd:resolve-type-name" as="xs:string">
     <xsl:param name="typeAttr" as="attribute()"/>
     <xsl:variable name="qname" as="xs:QName" select="resolve-QName($typeAttr, $typeAttr/..)"/>
     <xsl:if test="namespace-uri-from-QName($qname) ne $xdm:xsd-ns">
@@ -37,8 +38,8 @@
   <!-- Most-specific built-in XSD atomic type name for a value (e.g. 'xs:integer').
        Branches are ordered most-derived-first so a subtype is never misreported
        as one of its base types. xs:NOTATION cannot be constructed from a cast in
-       plain XPath, so xdm:cast-atomic degrades it to xs:untypedAtomic on parse. -->
-  <xsl:function name="xdm:type-name" as="xs:string">
+       plain XPath, so zxd:cast-atomic degrades it to xs:untypedAtomic on parse. -->
+  <xsl:function name="zxd:type-name" as="xs:string">
     <xsl:param name="value" as="xs:anyAtomicType"/>
     <xsl:choose>
       <xsl:when test="$value instance of xs:unsignedByte">xs:unsignedByte</xsl:when>
@@ -81,9 +82,9 @@
 
   <!-- Reconstructs an atomic value of the given type name from its canonical
        lexical string (as produced by serialize(., map{'method':'text'})).
-       xs:QName is handled separately by xdm:cast-qname since it needs a
+       xs:QName is handled separately by zxd:cast-qname since it needs a
        namespace URI, not just a lexical string. -->
-  <xsl:function name="xdm:cast-atomic" as="xs:anyAtomicType">
+  <xsl:function name="zxd:cast-atomic" as="xs:anyAtomicType">
     <xsl:param name="typeName" as="xs:string"/>
     <xsl:param name="lexical" as="xs:string"/>
     <xsl:choose>
@@ -126,7 +127,7 @@
   <!-- xs:QName values are stored as a namespace URI plus local name, since a
        QName's lexical form alone cannot be resolved without an in-scope
        namespace context at parse time. -->
-  <xsl:function name="xdm:cast-qname" as="xs:QName">
+  <xsl:function name="zxd:cast-qname" as="xs:QName">
     <xsl:param name="uri" as="xs:string?"/>
     <xsl:param name="local" as="xs:string"/>
     <xsl:sequence select="if (string-length($uri) gt 0) then QName($uri, $local) else QName((), $local)"/>

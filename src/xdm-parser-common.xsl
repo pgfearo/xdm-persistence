@@ -2,7 +2,8 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence"
-                exclude-result-prefixes="xsl"
+                xmlns:zxd="http://deltaxignia.com/ns/xdm-persistence/internal"
+                exclude-result-prefixes="xsl zxd"
                 version="3.0">
 
   <!--
@@ -15,7 +16,7 @@
 
   <!-- Standalone attribute nodes cannot be constructed directly in XPath, so
        one is built on a throwaway element and then extracted. -->
-  <xsl:function name="xdm:parse-attribute" as="attribute()">
+  <xsl:function name="zxd:parse-attribute" as="attribute()">
     <xsl:param name="el" as="element(xdm:attribute)"/>
     <xsl:variable name="name" as="xs:string" select="$el/@name"/>
     <xsl:variable name="uri" as="xs:string" select="$el/@uri"/>
@@ -28,7 +29,7 @@
   </xsl:function>
 
   <!-- Same trick for a standalone namespace node. -->
-  <xsl:function name="xdm:parse-namespace" as="namespace-node()">
+  <xsl:function name="zxd:parse-namespace" as="namespace-node()">
     <xsl:param name="el" as="element(xdm:namespace)"/>
     <xsl:variable name="prefix" as="xs:string" select="$el/@prefix"/>
     <xsl:variable name="uri" as="xs:string" select="$el/@uri"/>

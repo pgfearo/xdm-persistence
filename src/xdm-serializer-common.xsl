@@ -2,7 +2,8 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence"
-                exclude-result-prefixes="xsl"
+                xmlns:zxd="http://deltaxignia.com/ns/xdm-persistence/internal"
+                exclude-result-prefixes="xsl zxd"
                 version="3.0">
 
   <!--
@@ -12,11 +13,11 @@
        serialization modes - atomic values never contain nodes, and node
        *kind* classification is the same regardless of how a node ends up
        represented (embedded inline vs. referenced into a pool). Not
-       self-sufficient - relies on xdm-types.xsl (xdm:type-name) being
+       self-sufficient - relies on xdm-types.xsl (zxd:type-name) being
        imported alongside it, same as xdm-serializer.xsl/xdm-parser.xsl.
   -->
 
-  <xsl:function name="xdm:node-kind" as="xs:string?">
+  <xsl:function name="zxd:node-kind" as="xs:string?">
     <xsl:param name="item" as="item()"/>
     <xsl:choose>
       <xsl:when test="$item instance of document-node()">document</xsl:when>
@@ -30,21 +31,21 @@
     </xsl:choose>
   </xsl:function>
 
-  <xsl:function name="xdm:build-atomic" as="element(xdm:atomic)">
+  <xsl:function name="zxd:build-atomic" as="element(xdm:atomic)">
     <xsl:param name="v" as="xs:anyAtomicType"/>
-    <xsl:variable name="type" as="xs:string" select="xdm:type-name($v)"/>
+    <xsl:variable name="type" as="xs:string" select="zxd:type-name($v)"/>
     <xdm:atomic type="{$type}">
       <xsl:if test="$type eq 'xs:QName' and string-length(namespace-uri-from-QName($v)) gt 0">
         <xsl:attribute name="uri" select="namespace-uri-from-QName($v)"/>
       </xsl:if>
-      <xsl:value-of select="xdm:atomic-lexical($v)"/>
+      <xsl:value-of select="zxd:atomic-lexical($v)"/>
     </xdm:atomic>
   </xsl:function>
 
   <!-- Canonical lexical form for an atomic value. xs:QName is special-cased
        to its local name since the namespace URI is captured separately
-       (see xdm:build-atomic / xdm:build-map's key-uri). -->
-  <xsl:function name="xdm:atomic-lexical" as="xs:string">
+       (see zxd:build-atomic / zxd:build-map's key-uri). -->
+  <xsl:function name="zxd:atomic-lexical" as="xs:string">
     <xsl:param name="v" as="xs:anyAtomicType"/>
     <xsl:sequence select="
       if ($v instance of xs:QName) then local-name-from-QName($v)
@@ -61,7 +62,7 @@
        xdm-serializer-refs.xsl (only for a node whose root() is not a
        document-node() - everything else is a reference into the pool
        instead of an inline copy). -->
-  <xsl:function name="xdm:build-node" as="element()">
+  <xsl:function name="zxd:build-node" as="element()">
     <xsl:param name="node" as="node()"/>
     <xsl:param name="kind" as="xs:string"/>
     <xsl:choose>

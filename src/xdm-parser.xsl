@@ -4,6 +4,7 @@
                 xmlns:map="http://www.w3.org/2005/xpath-functions/map"
                 xmlns:array="http://www.w3.org/2005/xpath-functions/array"
                 xmlns:xdm="http://deltaxignia.com/ns/xdm-persistence"
+                xmlns:zxd="http://deltaxignia.com/ns/xdm-persistence/internal"
                 exclude-result-prefixes="#all"
                 version="3.0">
 
@@ -21,28 +22,28 @@
 
   <xsl:function name="xdm:parse" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
-    <xsl:sequence select="xdm:parse-item-seq($doc/xdm:sequence/xdm:item)"/>
+    <xsl:sequence select="zxd:parse-item-seq($doc/xdm:sequence/xdm:item)"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-item-seq" as="item()*">
+  <xsl:function name="zxd:parse-item-seq" as="item()*">
     <xsl:param name="items" as="element(xdm:item)*"/>
     <xsl:for-each select="$items">
-      <xsl:sequence select="xdm:parse-item(.)"/>
+      <xsl:sequence select="zxd:parse-item(.)"/>
     </xsl:for-each>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-item" as="item()*">
+  <xsl:function name="zxd:parse-item" as="item()*">
     <xsl:param name="item" as="element(xdm:item)"/>
     <xsl:variable name="payload" as="element()" select="$item/*[1]"/>
     <xsl:choose>
       <xsl:when test="$payload/self::xdm:atomic">
-        <xsl:sequence select="xdm:parse-atomic($payload)"/>
+        <xsl:sequence select="zxd:parse-atomic($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:map">
-        <xsl:sequence select="xdm:parse-map($payload)"/>
+        <xsl:sequence select="zxd:parse-map($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:array">
-        <xsl:sequence select="xdm:parse-array($payload)"/>
+        <xsl:sequence select="zxd:parse-array($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:text">
         <xsl:value-of select="string($payload)"/>
@@ -56,10 +57,10 @@
         </xsl:processing-instruction>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:attribute">
-        <xsl:sequence select="xdm:parse-attribute($payload)"/>
+        <xsl:sequence select="zxd:parse-attribute($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:namespace">
-        <xsl:sequence select="xdm:parse-namespace($payload)"/>
+        <xsl:sequence select="zxd:parse-namespace($payload)"/>
       </xsl:when>
       <xsl:when test="$payload/self::xdm:document">
         <xsl:document>
@@ -72,35 +73,35 @@
     </xsl:choose>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-atomic" as="xs:anyAtomicType">
+  <xsl:function name="zxd:parse-atomic" as="xs:anyAtomicType">
     <xsl:param name="atomicEl" as="element(xdm:atomic)"/>
-    <xsl:variable name="type" as="xs:string" select="xdm:resolve-type-name($atomicEl/@type)"/>
+    <xsl:variable name="type" as="xs:string" select="zxd:resolve-type-name($atomicEl/@type)"/>
     <xsl:sequence select="
-      if ($type eq 'xs:QName') then xdm:cast-qname($atomicEl/@uri, string($atomicEl))
-      else xdm:cast-atomic($type, string($atomicEl))"/>
+      if ($type eq 'xs:QName') then zxd:cast-qname($atomicEl/@uri, string($atomicEl))
+      else zxd:cast-atomic($type, string($atomicEl))"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-map" as="map(*)">
+  <xsl:function name="zxd:parse-map" as="map(*)">
     <xsl:param name="mapEl" as="element(xdm:map)"/>
     <xsl:sequence select="
       map:merge(
         for $entry in $mapEl/xdm:entry
-        return map:entry(xdm:parse-key($entry), xdm:parse-item-seq($entry/xdm:item)))"/>
+        return map:entry(zxd:parse-key($entry), zxd:parse-item-seq($entry/xdm:item)))"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-key" as="xs:anyAtomicType">
+  <xsl:function name="zxd:parse-key" as="xs:anyAtomicType">
     <xsl:param name="entry" as="element(xdm:entry)"/>
-    <xsl:variable name="keyType" as="xs:string" select="xdm:resolve-type-name($entry/@key-type)"/>
+    <xsl:variable name="keyType" as="xs:string" select="zxd:resolve-type-name($entry/@key-type)"/>
     <xsl:sequence select="
-      if ($keyType eq 'xs:QName') then xdm:cast-qname($entry/@key-uri, string($entry/@key))
-      else xdm:cast-atomic($keyType, string($entry/@key))"/>
+      if ($keyType eq 'xs:QName') then zxd:cast-qname($entry/@key-uri, string($entry/@key))
+      else zxd:cast-atomic($keyType, string($entry/@key))"/>
   </xsl:function>
 
-  <xsl:function name="xdm:parse-array" as="array(*)">
+  <xsl:function name="zxd:parse-array" as="array(*)">
     <xsl:param name="arrayEl" as="element(xdm:array)"/>
     <xsl:sequence select="
       fold-left($arrayEl/xdm:member, array{},
-        function($acc, $m) { array:append($acc, xdm:parse-item-seq($m/xdm:item)) })"/>
+        function($acc, $m) { array:append($acc, zxd:parse-item-seq($m/xdm:item)) })"/>
   </xsl:function>
 
 </xsl:stylesheet>
