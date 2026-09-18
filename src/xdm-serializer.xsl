@@ -22,7 +22,7 @@
        importing it a second time from here too would create a diamond.
   -->
 
-  <xsl:function name="xdm:serialize" as="document-node()">
+  <xsl:function name="xdm:to-document" as="document-node()">
     <xsl:param name="value" as="item()*"/>
     <xsl:document>
       <xdm:sequence xmlns:xs="http://www.w3.org/2001/XMLSchema">

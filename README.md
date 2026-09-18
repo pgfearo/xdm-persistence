@@ -12,7 +12,7 @@ following expression MUST return true for every supported XDM value:
 ```xquery
 deep-equal(
   $x, 
-  xdm:parse(xdm:serialize($x))
+  xdm:from-document(xdm:to-document($x))
 )
 ```
 
@@ -77,7 +77,7 @@ completely unwrapped, exactly as it was written.
 
 ## Reference-preserving mode
 
-The functions `xdm:serialize-with-refs`/`xdm:parse-with-refs` are for a second, opt-in
+The functions `xdm:to-document-with-refs`/`xdm:from-document-with-refs` are for a second, opt-in
 serialization mode with a stronger contract than `deep-equal`: for any node
 whose `root()` is a real `document-node()` (read via `doc()`, or otherwise
 part of a genuine source document rather than a one-off constructed
@@ -90,8 +90,8 @@ the original document — not just its own shape.
 <xsl:variable name="value" as="item()*" select="
   map { 'author': $person, 'reviewer': $person, 'author-bio': $person/bio }"/>
 
-<xsl:variable name="serialized" select="xdm:serialize-with-refs($value)"/>
-<xsl:variable name="restored" as="map(*)" select="xdm:parse-with-refs($serialized)[1]"/>
+<xsl:variable name="serialized" select="xdm:to-document-with-refs($value)"/>
+<xsl:variable name="restored" as="map(*)" select="xdm:from-document-with-refs($serialized)[1]"/>
 
 <!-- $restored?author is $restored?reviewer                  - true, same node back -->
 <!-- $restored?author-bio/parent::person is $restored?author - true, real axis navigation -->
@@ -104,13 +104,13 @@ on the original document — not just on values that happen to look the same.
 
 A node whose `root()` is *not* a document-node() (a one-off constructed
 fragment with no real document to reconstruct) is embedded inline exactly as
-`xdm:serialize` does; only genuinely document-rooted nodes are referenced.
+`xdm:to-document` does; only genuinely document-rooted nodes are referenced.
 Maps, arrays and atomic values persist identically to the default mode.
 
 This is a distinct XML format (`xdm:context` at the root, not
 `xdm:sequence`) that the default mode's parser can't read, and vice versa.
 If you're handed a persisted document without knowing in advance which mode
-wrote it, use `xdm:parse-any($doc)` (or check first with
+wrote it, use `xdm:from-any-document($doc)` (or check first with
 `xdm:is-refs-format($doc)`).
 
 `base-uri()` of a resolved node is also restored to the original source
@@ -119,7 +119,7 @@ not left pointing at wherever the value was parsed back, which is what it
 would default to otherwise.
 
 `root()` of any resolved node is a clean reconstruction containing just its
-own source document's content (built once per `xdm:parse-with-refs` call,
+own source document's content (built once per `xdm:from-document-with-refs` call,
 shared by every reference into that same document within it) — not the
 whole persisted file, and not a fresh copy per reference: a `document-node()`
 held directly as a value (`map { 'd1': $doc, 'd2': $doc }`, not an element
@@ -129,8 +129,8 @@ direct reference to that same document within the same call.
 
 | File | Purpose |
 |---|---|
-| `src/xdm-serializer-refs.xsl` | `xdm:serialize-with-refs($value)` |
-| `src/xdm-parser-refs.xsl` | `xdm:parse-with-refs($doc)` |
+| `src/xdm-serializer-refs.xsl` | `xdm:to-document-with-refs($value)` |
+| `src/xdm-parser-refs.xsl` | `xdm:from-document-with-refs($doc)` |
 
 ## Abbreviated XDM Syntax Views
 
@@ -153,9 +153,9 @@ The companion __[xdm-viewer](https://github.com/pgfearo/xdm-viewer)__ project pr
 | `xdm-types.xsl` | Shared vocabulary: the `xdm:` namespace, atomic type-name detection, and lexical cast-back |
 | `xdm-serializer-common.xsl` | Internal: node-kind classification and atomic/node encoding shared by both serializer modes |
 | `xdm-parser-common.xsl` | Internal: standalone attribute/namespace reconstruction shared by both parser modes |
-| `xdm-serializer.xsl` | `xdm:serialize($value)` |
-| `xdm-parser.xsl` | `xdm:parse($doc)` |
-| `xdm-persistence.xsl` | The one file to import — assembles every module above (and the [reference-preserving mode](#reference-preserving-mode)'s two files), plus `xdm:parse-any`/`xdm:is-refs-format` for reading a document without knowing in advance which mode wrote it |
+| `xdm-serializer.xsl` | `xdm:to-document($value)` |
+| `xdm-parser.xsl` | `xdm:from-document($doc)` |
+| `xdm-persistence.xsl` | The one file to import — assembles every module above (and the [reference-preserving mode](#reference-preserving-mode)'s two files), plus `xdm:from-any-document`/`xdm:is-refs-format` for reading a document without knowing in advance which mode wrote it |
 
 ## Main XSLT Module
 The main XSLT module is `xdm-persistence.xsl`. Its fundamental role is to import all required XSLT modules for parsing or serializing the XDM.
@@ -166,8 +166,8 @@ The main XSLT module is `xdm-persistence.xsl`. Its fundamental role is to import
 <xsl:import href="src/xdm-persistence.xsl"/>
 
 <xsl:variable name="value" as="item()*" select="map { 'a': 1, 'b': (2, 3) }"/>
-<xsl:variable name="xml" as="document-node()" select="xdm:serialize($value)"/>
-<xsl:variable name="restored" as="item()*" select="xdm:parse($xml)"/>
+<xsl:variable name="xml" as="document-node()" select="xdm:to-document($value)"/>
+<xsl:variable name="restored" as="item()*" select="xdm:from-document($xml)"/>
 ```
 
 
@@ -175,18 +175,18 @@ Writing to and reading from a file:
 
 ```xml
 <xsl:result-document href="data.xml" indent="no">
-  <xsl:sequence select="xdm:serialize($value)"/>
+  <xsl:sequence select="xdm:to-document($value)"/>
 </xsl:result-document>
 
 <!-- later, possibly in a separate run -->
-<xsl:sequence select="xdm:parse(doc('data.xml'))"/>
+<xsl:sequence select="xdm:from-document(doc('data.xml'))"/>
 ```
 
 **Always serialize with `indent="no"`** when writing a persisted file -
 `indent="no"` is the serializer default, but it's worth setting explicitly
 and never overriding. `indent="yes"` inserts whitespace-only text nodes
 between adjacent element-only children that had none in the original value,
-and those extra text nodes come back as real content on `xdm:parse()` -
+and those extra text nodes come back as real content on `xdm:from-document()` -
 silently breaking `deep-equal` against the original for any node with
 element-only children, with no error to warn you. If you want a persisted
 file to actually be readable, use [xdm-viewer](https://github.com/pgfearo/xdm-viewer)
@@ -242,5 +242,5 @@ function support — e.g. Saxon Home Edition or above, 9.8+. `xsltproc`
   cast constructor for `NOTATION`, so it can't be reconstructed from its
   lexical form alone.
 - Function items other than maps and arrays (inline functions, named function
-  references, partial applications) are not supported — `xdm:serialize` fails
+  references, partial applications) are not supported — `xdm:to-document` fails
   with `FOTY0013` if one appears in the value.

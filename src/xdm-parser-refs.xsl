@@ -15,8 +15,8 @@
        format's plain xdm:sequence documents, and xdm-parser.xsl does not
        read this one's.
 
-       Node identity is preserved for repeated references (xdm:parse(a) is
-       xdm:parse(b) holds when a and b referenced the same original node),
+       Node identity is preserved for repeated references (xdm:from-document(a) is
+       xdm:from-document(b) holds when a and b referenced the same original node),
        since every reference resolves against the one already-parsed pool
        document rather than being copied. A reference is resolved by
        walking a plain positional path (see xdm-serializer-refs.xsl's
@@ -25,14 +25,14 @@
        a node, so a resolved node is indistinguishable from the original
        (no xdm:key or other marker attribute ever appears in it).
 
-       xdm:parse-with-refs builds one document-node() per pool entry up
+       xdm:from-document-with-refs builds one document-node() per pool entry up
        front (zxd:build-whole-docs-map), once per call, and every
        resolution within that call navigates from those same nodes rather
        than constructing its own - so two references to a document-node()
        itself (not just to nodes within one) also come back identical, and
        root() of any resolved node is a clean reconstruction of just its
        own source document, not the whole persisted file. This can't be a
-       stylesheet-level global: xdm:parse-with-refs may be called on
+       stylesheet-level global: xdm:from-document-with-refs may be called on
        different persisted documents at different points in one
        transformation, and a single global computed once would tie the
        cache to whichever $doc triggered it first.
@@ -60,14 +60,14 @@
        regardless of import order.
   -->
 
-  <xsl:function name="xdm:parse-with-refs" as="item()*">
+  <xsl:function name="xdm:from-document-with-refs" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
     <xsl:variable name="wholeDocs" as="map(*)" select="zxd:build-whole-docs-map($doc)"/>
     <xsl:sequence select="zxd:parse-item-seq-refs($doc/xdm:context/xdm:sequence/xdm:item, $wholeDocs)"/>
   </xsl:function>
 
   <!-- One document-node() per pool entry, keyed by @id, built exactly
-       once per xdm:parse-with-refs call and threaded through the whole
+       once per xdm:from-document-with-refs call and threaded through the whole
        resolution chain below - see the header comment. -->
   <xsl:function name="zxd:build-whole-docs-map" as="map(*)">
     <xsl:param name="doc" as="document-node()"/>
@@ -193,9 +193,9 @@
     <xsl:sequence select="zxd:navigate-from-doc($poolDoc, $steps)"/>
   </xsl:function>
 
-  <!-- The form xdm:parse-with-refs actually uses: $wholeDocs is the map
+  <!-- The form xdm:from-document-with-refs actually uses: $wholeDocs is the map
        built once by zxd:build-whole-docs-map, so every resolution within
-       one xdm:parse-with-refs call navigates from the same document
+       one xdm:from-document-with-refs call navigates from the same document
        nodes rather than each constructing its own. -->
   <xsl:function name="zxd:resolve-node-ref" as="node()">
     <xsl:param name="ref" as="element(xdm:node-ref)"/>
@@ -301,7 +301,7 @@
 
        Deliberately a separate set of functions from
        zxd:resolve-node-ref/zxd:navigate-from-doc/zxd:navigate-from-node
-       rather than reusing them: those are on xdm:parse-with-refs's hot
+       rather than reusing them: those are on xdm:from-document-with-refs's hot
        path (real value reconstruction) and have no reason to pay for
        accumulating intermediates nothing there needs; this is an
        additive, display-oriented entry point. -->

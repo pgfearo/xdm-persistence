@@ -17,15 +17,15 @@
        xdm-parser-refs.xsl's header comments for why that matters).
 
        Provides both:
-         xdm:serialize / xdm:parse                     - the default,
+         xdm:to-document / xdm:from-document                     - the default,
            deep-equal-only mode (xdm-serializer.xsl / xdm-parser.xsl).
-         xdm:serialize-with-refs / xdm:parse-with-refs  - the opt-in,
+         xdm:to-document-with-refs / xdm:from-document-with-refs  - the opt-in,
            reference-preserving mode (xdm-serializer-refs.xsl /
            xdm-parser-refs.xsl), a distinct format from the default mode
            that also preserves node identity and axis navigation across
            references into the same source document.
 
-       Plus xdm:parse-any/xdm:is-refs-format below, which is why this
+       Plus xdm:from-any-document/xdm:is-refs-format below, which is why this
        needs to be more than an import-only aggregator: a reader handed
        an arbitrary persisted document (e.g. a generic viewer) shouldn't
        need out-of-band knowledge of which mode wrote it, but detecting
@@ -47,7 +47,7 @@
   <!-- True if $doc is the reference-preserving format (xdm-serializer-refs.xsl's
        xdm:context root), false if it's the default format (xdm-serializer.xsl's
        xdm:sequence root) or anything else unrecognized - exposed separately
-       from xdm:parse-any (rather than folded invisibly into it) so a caller
+       from xdm:from-any-document (rather than folded invisibly into it) so a caller
        that needs to branch its own logic on which format a document is,
        such as a viewer choosing how to render it, doesn't need to re-derive
        this check itself. -->
@@ -56,21 +56,21 @@
     <xsl:sequence select="exists($doc/xdm:context)"/>
   </xsl:function>
 
-  <!-- Parses a document written by either xdm:serialize or
-       xdm:serialize-with-refs, without the caller needing to know in
+  <!-- Parses a document written by either xdm:to-document or
+       xdm:to-document-with-refs, without the caller needing to know in
        advance which one produced it. -->
-  <xsl:function name="xdm:parse-any" as="item()*">
+  <xsl:function name="xdm:from-any-document" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
     <xsl:choose>
       <xsl:when test="xdm:is-refs-format($doc)">
-        <xsl:sequence select="xdm:parse-with-refs($doc)"/>
+        <xsl:sequence select="xdm:from-document-with-refs($doc)"/>
       </xsl:when>
       <xsl:when test="exists($doc/xdm:sequence)">
-        <xsl:sequence select="xdm:parse($doc)"/>
+        <xsl:sequence select="xdm:from-document($doc)"/>
       </xsl:when>
       <xsl:otherwise>
         <xsl:message terminate="yes" select="
-          'xdm:parse-any: not a recognized xdm-persistence document ' ||
+          'xdm:from-any-document: not a recognized xdm-persistence document ' ||
           '(expected xdm:sequence or xdm:context as the root element)'"/>
       </xsl:otherwise>
     </xsl:choose>

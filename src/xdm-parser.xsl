@@ -20,7 +20,7 @@
        importing it a second time from here too would create a diamond.
   -->
 
-  <xsl:function name="xdm:parse" as="item()*">
+  <xsl:function name="xdm:from-document" as="item()*">
     <xsl:param name="doc" as="document-node()"/>
     <xsl:sequence select="zxd:parse-item-seq($doc/xdm:sequence/xdm:item)"/>
   </xsl:function>

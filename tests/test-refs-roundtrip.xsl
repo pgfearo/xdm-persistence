@@ -10,7 +10,7 @@
 
   <!--
        Round-trip test for the reference-preserving mode
-       (xdm:serialize-with-refs / xdm:parse-with-refs), a distinct opt-in
+       (xdm:to-document-with-refs / xdm:from-document-with-refs), a distinct opt-in
        format from xdm-serializer.xsl/xdm-parser.xsl's deep-equal-only
        contract. Unlike the other tests here, deep-equal is not the goal:
        this mode's whole point is node *identity* and axis navigation
@@ -27,7 +27,7 @@
        document-node() itself, referenced directly, resolves to a real
        document node, and - via xdm:build-whole-docs-map, one document
        node built per pool entry and shared by every reference into it
-       within one xdm:parse-with-refs call - comes back identical across
+       within one xdm:from-document-with-refs call - comes back identical across
        two such direct references, with root() of an ordinary element
        reference lining up with it too; and - the reason this mode was
        reworked to use positional paths instead of an xdm:key marker
@@ -67,8 +67,8 @@
       'wholeDoc2': $src
     }"/>
 
-  <xsl:variable name="serialized" as="document-node()" select="xdm:serialize-with-refs($sampleValue)"/>
-  <xsl:variable name="restored" as="map(*)" select="xdm:parse-with-refs($serialized)"/>
+  <xsl:variable name="serialized" as="document-node()" select="xdm:to-document-with-refs($sampleValue)"/>
+  <xsl:variable name="restored" as="map(*)" select="xdm:from-document-with-refs($serialized)"/>
 
   <xsl:variable name="checks" as="map(xs:string, xs:boolean)" select="
     map {

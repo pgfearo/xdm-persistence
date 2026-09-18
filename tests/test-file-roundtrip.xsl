@@ -13,7 +13,7 @@
        that actually matters for real persistence, and the one that
        previously caught a real bug: indent="yes" inserts whitespace-only
        text nodes around element-only content (even a single-child
-       element), which come back as real extra child nodes on xdm:parse()
+       element), which come back as real extra child nodes on xdm:from-document()
        and silently break deep-equal. $sampleValue below deliberately
        includes both the single-element-only-child case (person/bio) and
        the multiple-adjacent-element-children case (family) that trigger
@@ -51,12 +51,12 @@
 
   <xsl:template name="xsl:initial-template">
     <xsl:result-document href="{$out-uri}" method="xml" indent="no">
-      <xsl:sequence select="xdm:serialize($sampleValue)"/>
+      <xsl:sequence select="xdm:to-document($sampleValue)"/>
     </xsl:result-document>
 
     <xsl:variable name="rawText" as="xs:string" select="unparsed-text($out-uri)"/>
     <xsl:variable name="reparsed" as="document-node()" select="parse-xml($rawText)"/>
-    <xsl:variable name="restored" as="item()*" select="xdm:parse($reparsed)"/>
+    <xsl:variable name="restored" as="item()*" select="xdm:from-document($reparsed)"/>
     <xsl:variable name="passed" as="xs:boolean" select="deep-equal($sampleValue, $restored)"/>
 
     <xsl:choose>

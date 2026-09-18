@@ -7,7 +7,7 @@
 
   <!--
        Basic round-trip test: build a map, serialize it, then parse that
-       back. Passes if deep-equal($sampleValue, xdm:parse(xdm:serialize($sampleValue)))
+       back. Passes if deep-equal($sampleValue, xdm:from-document(xdm:to-document($sampleValue)))
        - the core requirement documented in the README.
   -->
 
@@ -25,8 +25,8 @@
     }"/>
 
   <xsl:template name="xsl:initial-template">
-    <xsl:variable name="serialized" as="document-node()" select="xdm:serialize($sampleValue)"/>
-    <xsl:variable name="restored" as="item()*" select="xdm:parse($serialized)"/>
+    <xsl:variable name="serialized" as="document-node()" select="xdm:to-document($sampleValue)"/>
+    <xsl:variable name="restored" as="item()*" select="xdm:from-document($serialized)"/>
     <xsl:variable name="passed" as="xs:boolean" select="deep-equal($sampleValue, $restored)"/>
 
     <xsl:choose>
@@ -36,7 +36,7 @@
       <xsl:otherwise>
         <xsl:sequence select="'FAIL: parsed value differs from the original' || '&#10;'"/>
         <xsl:sequence select="'--- serialized ---' || '&#10;' || serialize($serialized, map{'method':'xml', 'indent': true()}) || '&#10;'"/>
-        <xsl:sequence select="'--- restored, re-serialized ---' || '&#10;' || serialize(xdm:serialize($restored), map{'method':'xml', 'indent': true()}) || '&#10;'"/>
+        <xsl:sequence select="'--- restored, re-serialized ---' || '&#10;' || serialize(xdm:to-document($restored), map{'method':'xml', 'indent': true()}) || '&#10;'"/>
         <xsl:message terminate="yes" select="'Test failed'"/>
       </xsl:otherwise>
     </xsl:choose>

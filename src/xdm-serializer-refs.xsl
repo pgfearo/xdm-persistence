@@ -275,7 +275,7 @@
   <!-- Entry point. xdm:context (not a bare xdm:sequence, unlike
        xdm-serializer.xsl's format) wraps both the value tree and the
        document pool it references into. -->
-  <xsl:function name="xdm:serialize-with-refs" as="document-node()">
+  <xsl:function name="xdm:to-document-with-refs" as="document-node()">
     <xsl:param name="value" as="item()*"/>
     <xsl:variable name="refs" as="node()*" select="zxd:collect-doc-refs($value)"/>
     <xsl:document>
