@@ -244,3 +244,8 @@ function support — e.g. Saxon Home Edition or above, 9.8+. `xsltproc`
 - Function items other than maps and arrays (inline functions, named function
   references, partial applications) are not supported — `xdm:to-document` fails
   with `FOTY0013` if one appears in the value.
+- XPath 4.0 JNodes (e.g. from `jtree()`, or a path step over a map, with an
+  XSLT 4.0 processor such as Saxon 13) are persisted as the values they wrap:
+  their keys and positions in their trees aren't kept, so they parse back as
+  maps, arrays or atomic values. The 4.0 functions this uses are looked up
+  dynamically, so the stylesheets still run with XSLT 3.0 processors.
