@@ -230,6 +230,19 @@ ever appears in a resolved node.
 SAXON_JAR=/path/to/saxon-he-12.jar tests/run.sh
 ```
 
+### XPath 4.0 tests
+
+`tests/xpath40/` holds tests for XPath 4.0 values: `test-jnodes-roundtrip.xsl`
+checks that JNodes persist as the values they wrap, in both modes. These are
+XSLT 4.0 stylesheets, so `tests/run.sh` doesn't run them. They need Saxon-PE
+or Saxon-EE 13 (Saxon-HE 13 rejects XPath 4.0 syntax), with XPath 4.0 syntax
+enabled. Run each one from the repository root, e.g.:
+
+```sh
+java -cp /path/to/saxon-pe-13.0.jar net.sf.saxon.Transform \
+  -xsl:tests/xpath40/test-jnodes-roundtrip.xsl -it --allowSyntaxExtensions:on
+```
+
 ## Requirements
 
 An XSLT 3.0 / XPath 3.1 processor with maps, arrays and higher-order
